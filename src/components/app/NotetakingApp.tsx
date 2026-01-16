@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { EvoluClientProvider } from "@/components/providers/EvoluClientProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { useEvolu } from "@/lib/evolu";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -65,6 +66,7 @@ function AppContent() {
     <>
       <OnboardingDialog owner={owner} />
       <AppLayout owner={owner} />
+      <OfflineIndicator />
     </>
   );
 }

@@ -3,10 +3,14 @@
   "short_name": "Notes",
   "description": "A local-first note-taking app with cloud sync",
   "start_url": "/",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
   "theme_color": "#0a0a0a",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "scope": "/",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -56,5 +60,8 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ]
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false,
+  "related_applications": []
 }
