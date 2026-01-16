@@ -119,6 +119,14 @@ export function Sidebar() {
     const folderNotes = getNotesInFolder(folder.id);
     const hasChildren = subfolders.length > 0 || folderNotes.length > 0;
 
+    const handleSelect = () => {
+      setSelectedFolderId(folder.id);
+      setSelectedNoteId(null);
+      if (hasChildren) {
+        toggleFolder(folder.id);
+      }
+    };
+
     return (
       <div key={folder.id}>
         <div
@@ -127,26 +135,11 @@ export function Sidebar() {
             selectedFolderId === folder.id && "bg-accent"
           )}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          onClick={() => {
-            setSelectedFolderId(folder.id);
-            setSelectedNoteId(null);
-            if (hasChildren) {
-              toggleFolder(folder.id);
-            }
-          }}
-          onTouchStart={(e) => {
-            // Provide visual feedback on touch
-            e.currentTarget.classList.add("bg-accent");
-          }}
           onTouchEnd={(e) => {
-            // Capture element reference before setTimeout
-            const element = e.currentTarget;
-            setTimeout(() => {
-              if (selectedFolderId !== folder.id) {
-                element.classList.remove("bg-accent");
-              }
-            }, 100);
+            e.preventDefault();
+            handleSelect();
           }}
+          onClick={handleSelect}
         >
           {hasChildren ? (
             isExpanded ? (
@@ -179,33 +172,27 @@ export function Sidebar() {
     );
   };
 
-  const renderNote = (note: (typeof notes)[number], depth = 0) => (
-    <div
-      key={note.id}
-      className={cn(
-        "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
-        selectedNoteId === note.id && "bg-accent"
-      )}
-      style={{ paddingLeft: `${depth * 12 + 28}px` }}
-      onClick={() => {
-        setSelectedNoteId(note.id);
-        setSelectedFolderId(note.folderId);
-        closeSidebarOnMobile();
-      }}
-      onTouchStart={(e) => {
-        // Prevent ghost clicks on mobile
-        e.currentTarget.classList.add("bg-accent");
-      }}
-      onTouchEnd={(e) => {
-        // Capture element reference before setTimeout
-        const element = e.currentTarget;
-        setTimeout(() => {
-          if (selectedNoteId !== note.id) {
-            element.classList.remove("bg-accent");
-          }
-        }, 100);
-      }}
-    >
+  const renderNote = (note: (typeof notes)[number], depth = 0) => {
+    const handleSelect = () => {
+      setSelectedNoteId(note.id);
+      setSelectedFolderId(note.folderId);
+      closeSidebarOnMobile();
+    };
+
+    return (
+      <div
+        key={note.id}
+        className={cn(
+          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
+          selectedNoteId === note.id && "bg-accent"
+        )}
+        style={{ paddingLeft: `${depth * 12 + 28}px` }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          handleSelect();
+        }}
+        onClick={handleSelect}
+      >
       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
       <span className="flex-1 truncate">{note.title}</span>
       <Button
