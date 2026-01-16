@@ -122,7 +122,7 @@ export function Sidebar() {
       <div key={folder.id}>
         <div
           className={cn(
-            "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+            "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
             selectedFolderId === folder.id && "bg-accent"
           )}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -132,6 +132,18 @@ export function Sidebar() {
             if (hasChildren) {
               toggleFolder(folder.id);
             }
+          }}
+          onTouchStart={(e) => {
+            // Provide visual feedback on touch
+            e.currentTarget.classList.add("bg-accent");
+          }}
+          onTouchEnd={(e) => {
+            // Clean up touch state
+            setTimeout(() => {
+              if (selectedFolderId !== folder.id) {
+                e.currentTarget.classList.remove("bg-accent");
+              }
+            }, 100);
           }}
         >
           {hasChildren ? (
@@ -169,7 +181,7 @@ export function Sidebar() {
     <div
       key={note.id}
       className={cn(
-        "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent",
+        "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
         selectedNoteId === note.id && "bg-accent"
       )}
       style={{ paddingLeft: `${depth * 12 + 28}px` }}
@@ -177,6 +189,18 @@ export function Sidebar() {
         setSelectedNoteId(note.id);
         setSelectedFolderId(note.folderId);
         closeSidebarOnMobile();
+      }}
+      onTouchStart={(e) => {
+        // Prevent ghost clicks on mobile
+        e.currentTarget.classList.add("bg-accent");
+      }}
+      onTouchEnd={(e) => {
+        // Clean up the touch state after a brief moment
+        setTimeout(() => {
+          if (selectedNoteId !== note.id) {
+            e.currentTarget.classList.remove("bg-accent");
+          }
+        }, 100);
       }}
     >
       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
