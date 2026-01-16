@@ -204,7 +204,8 @@ export function Sidebar() {
         <Trash2 className="h-3 w-3 text-muted-foreground" />
       </Button>
     </div>
-  );
+    );
+  };
 
   return (
     <TooltipProvider>
