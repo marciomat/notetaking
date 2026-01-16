@@ -9,6 +9,7 @@ import {
   FileText,
   Folder,
   Trash2,
+  PanelLeftClose,
 } from "lucide-react";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
@@ -36,6 +37,7 @@ export function Sidebar() {
     setSelectedNoteId,
     setSelectedFolderId,
     setSidebarOpen,
+    toggleSidebarCollapsed,
   } = useNoteStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
@@ -192,12 +194,27 @@ export function Sidebar() {
 
   return (
     <TooltipProvider>
-      <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-background">
+      <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-background">
         {/* Sidebar header */}
         <div className="flex h-10 items-center justify-between px-3">
-          <span className="text-xs font-medium uppercase text-muted-foreground">
-            Notes
-          </span>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 hidden md:flex"
+                  onClick={toggleSidebarCollapsed}
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Collapse Sidebar</TooltipContent>
+            </Tooltip>
+            <span className="text-xs font-medium uppercase text-muted-foreground">
+              Notes
+            </span>
+          </div>
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>

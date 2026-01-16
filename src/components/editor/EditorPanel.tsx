@@ -22,7 +22,7 @@ import { useQuery } from "@evolu/react";
 export function EditorPanel() {
   const { update } = useEvolu();
   const notes = useQuery(notesQuery);
-  const { selectedNoteId, toggleSidebar } = useNoteStore();
+  const { selectedNoteId, toggleSidebar, sidebarCollapsed } = useNoteStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
@@ -103,7 +103,12 @@ export function EditorPanel() {
     <TooltipProvider>
       <main className="flex flex-1 flex-col overflow-hidden bg-background">
         {/* Editor header */}
-        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+        <div
+          className={cn(
+            "flex h-12 shrink-0 items-center justify-between border-b border-border px-4",
+            sidebarCollapsed && "md:pl-14"
+          )}
+        >
           <div className="flex items-center gap-2 flex-1">
             {/* Mobile menu button */}
             <Button
@@ -148,7 +153,12 @@ export function EditorPanel() {
         </div>
 
         {/* Editor/Preview area */}
-        <div className="flex-1 overflow-auto">
+        <div
+          className={cn(
+            "flex-1 overflow-auto",
+            sidebarCollapsed && "md:pl-10"
+          )}
+        >
           {isEditing ? (
             <Textarea
               value={content}
