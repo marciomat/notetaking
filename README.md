@@ -16,3 +16,6 @@ Note-taking web app PWA
   - Settings button (with a gear icon). This will open a settings window
   - Dark-mode toggle
 - Settings window will allow user to copy currnet Evolu database 'mnemonics' and allow user to change to new 'mnemonics' (to read a different Evolu database)
+- The main screen of the note-taking app contains the main panel with the editor for writing notes and on the left side is a panel with all the notes created by the user
+- Notes can be created under folders, and folders can contain subfolders
+- The main panel with the notes can accept Markdown text, which by default will render Markdown automatically
