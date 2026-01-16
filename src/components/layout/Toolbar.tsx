@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTheme } from "next-themes";
-import { Settings, Sun, Moon, Monitor } from "lucide-react";
+import { Settings, Sun, Moon, Monitor, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import type { AppOwner } from "@evolu/common";
 
 interface ToolbarProps {
@@ -20,6 +21,7 @@ interface ToolbarProps {
 export function Toolbar({ owner }: ToolbarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { sidebarOpen, toggleSidebar } = useNoteStore();
 
   const cycleTheme = () => {
     if (theme === "light") {
@@ -36,8 +38,23 @@ export function Toolbar({ owner }: ToolbarProps) {
   return (
     <TooltipProvider>
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-4">
-        {/* Left side - App title */}
+        {/* Left side - Menu button + App title */}
         <div className="flex items-center gap-2">
+          {/* Mobile menu toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8 md:hidden"
+          >
+            {sidebarOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+
           <h1 className="text-lg font-semibold">Notetaking</h1>
         </div>
 

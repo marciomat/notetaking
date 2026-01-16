@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Plus,
   FolderPlus,
@@ -35,11 +35,19 @@ export function Sidebar() {
     selectedFolderId,
     setSelectedNoteId,
     setSelectedFolderId,
+    setSidebarOpen,
   } = useNoteStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set()
   );
+
+  // Close sidebar on mobile after selecting a note
+  const closeSidebarOnMobile = useCallback(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [setSidebarOpen]);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => {
@@ -61,6 +69,7 @@ export function Sidebar() {
     });
     if (result.ok) {
       setSelectedNoteId(result.value.id);
+      closeSidebarOnMobile();
     }
   };
 
@@ -165,6 +174,7 @@ export function Sidebar() {
       onClick={() => {
         setSelectedNoteId(note.id);
         setSelectedFolderId(note.folderId);
+        closeSidebarOnMobile();
       }}
     >
       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -182,7 +192,7 @@ export function Sidebar() {
 
   return (
     <TooltipProvider>
-      <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-muted/30">
+      <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-background">
         {/* Sidebar header */}
         <div className="flex h-10 items-center justify-between px-3">
           <span className="text-xs font-medium uppercase text-muted-foreground">

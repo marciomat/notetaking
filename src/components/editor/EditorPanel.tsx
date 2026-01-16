@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Edit3, Eye } from "lucide-react";
+import { Edit3, Eye, Menu } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import * as Evolu from "@evolu/common";
@@ -22,7 +22,7 @@ import { useQuery } from "@evolu/react";
 export function EditorPanel() {
   const { update } = useEvolu();
   const notes = useQuery(notesQuery);
-  const { selectedNoteId } = useNoteStore();
+  const { selectedNoteId, toggleSidebar } = useNoteStore();
 
   const [isEditing, setIsEditing] = useState(true);
   const [title, setTitle] = useState("");
@@ -104,13 +104,26 @@ export function EditorPanel() {
       <main className="flex flex-1 flex-col overflow-hidden bg-background">
         {/* Editor header */}
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={saveNote}
-            className="h-8 max-w-md border-none bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
-            placeholder="Note title..."
-          />
+          <div className="flex items-center gap-2 flex-1">
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="h-8 w-8 shrink-0 md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={saveNote}
+              className="h-8 max-w-md border-none bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
+              placeholder="Note title..."
+            />
+          </div>
 
           <div className="flex items-center gap-1">
             <Tooltip>
