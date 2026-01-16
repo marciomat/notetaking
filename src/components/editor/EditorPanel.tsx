@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Edit3, Eye, Menu } from "lucide-react";
+import { Edit3, Eye } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import * as Evolu from "@evolu/common";
@@ -22,7 +22,7 @@ import { useQuery } from "@evolu/react";
 export function EditorPanel() {
   const { update } = useEvolu();
   const notes = useQuery(notesQuery);
-  const { selectedNoteId, toggleSidebar, sidebarCollapsed } = useNoteStore();
+  const { selectedNoteId, sidebarCollapsed } = useNoteStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
@@ -110,17 +110,6 @@ export function EditorPanel() {
           )}
         >
           <div className="flex items-center gap-2 flex-1">
-            {/* Mobile menu button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              className="h-8 w-8 shrink-0 md:hidden"
-            >
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}

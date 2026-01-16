@@ -10,6 +10,7 @@ import {
   Folder,
   Trash2,
   PanelLeftClose,
+  X,
 } from "lucide-react";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
@@ -138,10 +139,11 @@ export function Sidebar() {
             e.currentTarget.classList.add("bg-accent");
           }}
           onTouchEnd={(e) => {
-            // Clean up touch state
+            // Capture element reference before setTimeout
+            const element = e.currentTarget;
             setTimeout(() => {
               if (selectedFolderId !== folder.id) {
-                e.currentTarget.classList.remove("bg-accent");
+                element.classList.remove("bg-accent");
               }
             }, 100);
           }}
@@ -195,10 +197,11 @@ export function Sidebar() {
         e.currentTarget.classList.add("bg-accent");
       }}
       onTouchEnd={(e) => {
-        // Clean up the touch state after a brief moment
+        // Capture element reference before setTimeout
+        const element = e.currentTarget;
         setTimeout(() => {
           if (selectedNoteId !== note.id) {
-            e.currentTarget.classList.remove("bg-accent");
+            element.classList.remove("bg-accent");
           }
         }, 100);
       }}
@@ -222,6 +225,7 @@ export function Sidebar() {
         {/* Sidebar header */}
         <div className="flex h-10 items-center justify-between px-3">
           <div className="flex items-center gap-2">
+            {/* Desktop: Collapse button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -235,6 +239,18 @@ export function Sidebar() {
               </TooltipTrigger>
               <TooltipContent>Collapse Sidebar</TooltipContent>
             </Tooltip>
+
+            {/* Mobile: Close button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 md:hidden"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close sidebar</span>
+            </Button>
+
             <span className="text-xs font-medium uppercase text-muted-foreground">
               Notes
             </span>
