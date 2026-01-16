@@ -24,7 +24,7 @@ export function EditorPanel() {
   const notes = useQuery(notesQuery);
   const { selectedNoteId, toggleSidebar } = useNoteStore();
 
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
@@ -126,33 +126,24 @@ export function EditorPanel() {
           </div>
 
           <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={isEditing ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setIsEditing(true)}
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={!isEditing ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setIsEditing(false)}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Preview</TooltipContent>
-            </Tooltip>
+            {isEditing && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      saveNote();
+                      setIsEditing(false);
+                    }}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Preview</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 
@@ -162,21 +153,28 @@ export function EditorPanel() {
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              onBlur={saveNote}
+              onBlur={() => {
+                saveNote();
+                setIsEditing(false);
+              }}
+              autoFocus
               className={cn(
                 "h-full min-h-full w-full resize-none rounded-none border-none p-4 font-mono text-sm shadow-none focus-visible:ring-0"
               )}
               placeholder="Start writing in Markdown..."
             />
           ) : (
-            <div className="prose prose-neutral dark:prose-invert max-w-none p-4">
+            <div
+              onClick={() => setIsEditing(true)}
+              className="prose prose-neutral dark:prose-invert max-w-none p-4 cursor-text"
+            >
               {content ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {content}
                 </ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground">
-                  Nothing to preview yet...
+                  Click here or start writing in Markdown...
                 </p>
               )}
             </div>
