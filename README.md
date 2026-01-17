@@ -13,14 +13,15 @@ Note-taking web app PWA
 2. If user decides to create a new Evolu database, prompt user with the newly created 'mnemonics' that can be used to load the same database on a different device. Warn user that this is the only way to recover the database so the 'mnemonics' should be backed up
 3. A toolbar should be always visible at the top, containing:
   - Settings button (with a gear icon). This will open a settings window
-4. - Dark-mode toggle
-5. Settings window will allow user to copy currnet Evolu database 'mnemonics' and allow user to change to new 'mnemonics' (to read a different Evolu database)
-6. The main screen of the note-taking app contains the main panel with the editor for writing notes and on the left side is a panel with all the notes created by the user
-7. Notes can be created under folders, and folders can contain subfolders
-8. Each note can have a selected state of 'Preview' or 'Edit' mode. Preview mode will render Markdown. The state of each note is saved and sync'ed and by default a new note starts in 'Edit' mode
-9. Left side panel with the list of notes/folders can have its size adjusted by dragging from the edge. It should be possible to drag all the way to the left until the entire panel is hidden. It can also be hidden entirely by clicking on a button on the top of the panel. Clicking on the same button will toggle between left panel showing or hidden.
-10. When a note or a folder is selected (or mouse hover) it will show 2 icons: one for renaming it, another for deleting it. Before deleting the user have to confirm the action through a pop-up window
-11. The order of items on the sidebar. Folders will always be first. Items should be sorted alphabetically by the title (but Folders will always be at the top).
-12. Notes can be pinned by clicking on a 'Pin' button on the toolbar to the left of the toggle button `Preview/Edit`. When a note is pinned, it will remain at the top of the list on the Sidebar. If more than one note is pinned, they will follow alphabetical order
-13. When the app opens, if an Evolu database is already present, it should open the item that was last seen. And the `last seen` item should also be sync'ed between devices.
-14. Besides adding a new note, user can also create a new item that is a calculator-notepad (e.g. https://soulver.app/) that allows to write down notes and make calculations for each line, with the total of all in the last line. This new item will show up on the sidebar just like a note would and share the same behavior as a note
+  - Dark-mode toggle
+4. Settings window will allow user to copy currnet Evolu database 'mnemonics' and allow user to change to new 'mnemonics' (to read a different Evolu database)
+5. The main screen of the note-taking app contains the main panel with the editor for writing notes and on the left side is a panel with all the notes created by the user
+6. Notes can be created under folders, and folders can contain subfolders
+7. Each note can have a selected state of 'Preview' or 'Edit' mode. Preview mode will render Markdown. The state of each note is saved and sync'ed and by default a new note starts in 'Edit' mode
+8. Left side panel with the list of notes/folders can have its size adjusted by dragging from the edge. It should be possible to drag all the way to the left until the entire panel is hidden. It can also be hidden entirely by clicking on a button on the top of the panel. Clicking on the same button will toggle between left panel showing or hidden.
+9. When a note or a folder is selected (or mouse hover) it will show 2 icons: one for renaming it, another for deleting it. Before deleting the user have to confirm the action through a pop-up window
+10. The order of items on the sidebar. Folders will always be first. Items should be sorted alphabetically by the title (but Folders will always be at the top).
+11. Notes can be pinned by clicking on a 'Pin' button on the toolbar to the left of the toggle button `Preview/Edit`. When a note is pinned, it will remain at the top of the list on the Sidebar. If more than one note is pinned, they will follow alphabetical order
+12. When the app opens, if an Evolu database is already present, it should open the item that was last seen. And the `last seen` item should also be sync'ed between devices.
+13. Besides adding a new note, user can also create a new item that is a calculator-notepad (e.g. https://soulver.app/) that allows to write down notes and make calculations for each line, with the total of all in the last line. This new item will show up on the sidebar just like a note would and share the same behavior as a note
+14. The notes and calculator-notepad can be drag-and-dropped to move in and out of a folder. Once inside the folder they should always follow alphabetical order

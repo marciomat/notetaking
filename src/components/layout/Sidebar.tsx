@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   Plus,
   FolderPlus,
@@ -74,6 +74,17 @@ export function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
+  // Drag and drop state
+  const [draggedNoteId, setDraggedNoteId] = useState<NoteId | null>(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<FolderId | "root" | null>(null);
+
+  // Touch drag state
+  const [isTouchDragging, setIsTouchDragging] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const sidebarContainerRef = useRef<HTMLDivElement>(null);
+  const folderElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+
   // State for creating new items - shows input immediately before database insert
   const [creatingItem, setCreatingItem] = useState<{
     type: "note" | "folder" | "calculator";
@@ -88,6 +99,15 @@ export function Sidebar() {
       node.focus();
       node.select();
     }
+  }, []);
+
+  // Cleanup long press timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
   }, []);
 
   // Auto-expand parent folders when a note is selected
@@ -318,6 +338,160 @@ export function Sidebar() {
     setDeleteDialog({ open: false, type: null, id: null, name: "" });
   };
 
+  // Drag and drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent, noteId: NoteId) => {
+    setDraggedNoteId(noteId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", noteId);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedNoteId(null);
+    setDropTargetFolderId(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, folderId: FolderId | "root") => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    setDropTargetFolderId(folderId);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // Only clear if we're leaving to something outside (not a child element)
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+      setDropTargetFolderId(null);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetFolderId: FolderId | "root") => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedNoteId) return;
+
+    const note = notes.find((n) => n.id === draggedNoteId);
+    if (!note) return;
+
+    // Determine new folder ID (null for root)
+    const newFolderId = targetFolderId === "root" ? null : targetFolderId;
+
+    // Only update if actually changing folders
+    if (note.folderId !== newFolderId) {
+      update("note", { id: draggedNoteId, folderId: newFolderId });
+
+      // Expand the target folder if dropping into one
+      if (newFolderId) {
+        setExpandedFolders((prev) => new Set(prev).add(newFolderId));
+      }
+    }
+
+    setDraggedNoteId(null);
+    setDropTargetFolderId(null);
+  }, [draggedNoteId, notes, update]);
+
+  // Touch drag handlers for mobile
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent, noteId: NoteId) => {
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+    // Start long press timer (500ms)
+    longPressTimerRef.current = setTimeout(() => {
+      setDraggedNoteId(noteId);
+      setIsTouchDragging(true);
+      // Vibrate to indicate drag started (if supported)
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const startPos = touchStartPosRef.current;
+
+    // If moved too much before long press triggered, cancel
+    if (startPos && !isTouchDragging) {
+      const dx = Math.abs(touch.clientX - startPos.x);
+      const dy = Math.abs(touch.clientY - startPos.y);
+      if (dx > 10 || dy > 10) {
+        clearLongPressTimer();
+        return;
+      }
+    }
+
+    // If we're touch dragging, find the drop target under the touch point
+    if (isTouchDragging && draggedNoteId) {
+      e.preventDefault(); // Prevent scrolling while dragging
+
+      // Find element under touch point
+      const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!elementUnderTouch) {
+        setDropTargetFolderId("root");
+        return;
+      }
+
+      // Check if we're over a folder
+      let foundFolder = false;
+      folderElementsRef.current.forEach((element, folderId) => {
+        if (element.contains(elementUnderTouch)) {
+          setDropTargetFolderId(folderId as FolderId);
+          foundFolder = true;
+        }
+      });
+
+      if (!foundFolder) {
+        // Check if we're over the sidebar container (root drop target)
+        if (sidebarContainerRef.current?.contains(elementUnderTouch)) {
+          setDropTargetFolderId("root");
+        } else {
+          setDropTargetFolderId(null);
+        }
+      }
+    }
+  }, [isTouchDragging, draggedNoteId, clearLongPressTimer]);
+
+  const handleTouchEnd = useCallback(() => {
+    clearLongPressTimer();
+
+    if (isTouchDragging && draggedNoteId && dropTargetFolderId) {
+      const note = notes.find((n) => n.id === draggedNoteId);
+      if (note) {
+        const newFolderId = dropTargetFolderId === "root" ? null : dropTargetFolderId;
+
+        if (note.folderId !== newFolderId) {
+          update("note", { id: draggedNoteId, folderId: newFolderId });
+
+          if (newFolderId) {
+            setExpandedFolders((prev) => new Set(prev).add(newFolderId));
+          }
+        }
+      }
+    }
+
+    setDraggedNoteId(null);
+    setDropTargetFolderId(null);
+    setIsTouchDragging(false);
+    touchStartPosRef.current = null;
+  }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, clearLongPressTimer]);
+
+  const handleTouchCancel = useCallback(() => {
+    clearLongPressTimer();
+    setDraggedNoteId(null);
+    setDropTargetFolderId(null);
+    setIsTouchDragging(false);
+    touchStartPosRef.current = null;
+  }, [clearLongPressTimer]);
+
   // Get root folders (no parent)
   const rootFolders = folders.filter((f) => f.parentId === null);
 
@@ -346,19 +520,37 @@ export function Sidebar() {
       }
     };
 
+    const isDropTarget = dropTargetFolderId === folder.id;
+
+    // Register folder element ref for touch drag detection
+    const registerFolderRef = (el: HTMLDivElement | null) => {
+      if (el) {
+        folderElementsRef.current.set(folder.id, el);
+      } else {
+        folderElementsRef.current.delete(folder.id);
+      }
+    };
+
     return (
       <div key={folder.id}>
         <div
+          ref={registerFolderRef}
           className={cn(
             "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
-            selectedFolderId === folder.id && "bg-accent"
+            selectedFolderId === folder.id && "bg-accent",
+            isDropTarget && draggedNoteId && "bg-primary/20 ring-2 ring-primary ring-inset"
           )}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           onTouchEnd={(e) => {
-            e.preventDefault();
-            handleSelect();
+            if (!isTouchDragging) {
+              e.preventDefault();
+              handleSelect();
+            }
           }}
           onClick={handleSelect}
+          onDragOver={(e) => handleDragOver(e, folder.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, folder.id)}
         >
           {hasChildren ? (
             isExpanded ? (
@@ -466,18 +658,33 @@ export function Sidebar() {
       closeSidebarOnMobile();
     };
 
+    const isDragging = draggedNoteId === note.id;
+
     return (
       <div
         key={note.id}
         className={cn(
-          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
-          selectedNoteId === note.id && "bg-accent"
+          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
+          selectedNoteId === note.id && "bg-accent",
+          isDragging && "opacity-50 scale-105 z-10 relative",
+          isTouchDragging && isDragging && "shadow-lg bg-accent"
         )}
         style={{ paddingLeft: `${depth * 12 + 28}px` }}
+        draggable={!isTouchDragging}
+        onDragStart={(e) => handleDragStart(e, note.id)}
+        onDragEnd={handleDragEnd}
+        onTouchStart={(e) => handleTouchStart(e, note.id)}
+        onTouchMove={handleTouchMove}
         onTouchEnd={(e) => {
-          e.preventDefault();
-          handleSelect();
+          if (isTouchDragging) {
+            handleTouchEnd();
+          } else {
+            clearLongPressTimer();
+            e.preventDefault();
+            handleSelect();
+          }
         }}
+        onTouchCancel={handleTouchCancel}
         onClick={handleSelect}
       >
       {/* Pin icon - always visible when note is pinned, before note icon */}
@@ -633,7 +840,16 @@ export function Sidebar() {
             clearSelection();
           }
         }}>
-          <div className="p-2 min-h-full sidebar-container">
+          <div
+            ref={sidebarContainerRef}
+            className={cn(
+              "p-2 min-h-full sidebar-container",
+              dropTargetFolderId === "root" && draggedNoteId && "bg-primary/10"
+            )}
+            onDragOver={(e) => handleDragOver(e, "root")}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, "root")}
+          >
             {/* Creating new item input - shown at root level when no folder is selected */}
             {creatingItem && !selectedFolderId && (
               <div
@@ -690,6 +906,13 @@ export function Sidebar() {
           </div>
         </ScrollArea>
       </aside>
+
+      {/* Touch drag indicator */}
+      {isTouchDragging && draggedNoteId && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2">
+          <span>Drag to a folder or release to move</span>
+        </div>
+      )}
 
       {/* Delete confirmation dialog */}
       <AlertDialog
