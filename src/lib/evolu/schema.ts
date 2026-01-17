@@ -30,6 +30,8 @@ export const Schema = {
     viewMode: Evolu.nullOr(Evolu.NonEmptyString100),
     // Whether the note is pinned (stays at top of list)
     isPinned: Evolu.nullOr(Evolu.SqliteBoolean),
+    // Note type: "note" (default) or "calculator"
+    noteType: Evolu.nullOr(Evolu.NonEmptyString100),
   },
   settings: {
     id: SettingsId,

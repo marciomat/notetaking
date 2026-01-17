@@ -13,6 +13,7 @@ import {
   X,
   Pencil,
   Pin,
+  Calculator,
 } from "lucide-react";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
@@ -75,7 +76,7 @@ export function Sidebar() {
 
   // State for creating new items - shows input immediately before database insert
   const [creatingItem, setCreatingItem] = useState<{
-    type: "note" | "folder";
+    type: "note" | "folder" | "calculator";
     defaultName: string;
     name: string;
   } | null>(null);
@@ -223,6 +224,19 @@ export function Sidebar() {
     });
   };
 
+  const handleCreateCalculator = () => {
+    // Expand parent folder if creating calculator inside a folder
+    if (selectedFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
+    }
+    // Show input immediately - keyboard will appear because this is direct user interaction
+    setCreatingItem({
+      type: "calculator",
+      defaultName: "Untitled Calculator",
+      name: "Untitled Calculator",
+    });
+  };
+
   const saveCreatingItem = useCallback(() => {
     if (!creatingItem) return;
 
@@ -235,13 +249,15 @@ export function Sidebar() {
       return;
     }
 
-    if (creatingItem.type === "note") {
+    if (creatingItem.type === "note" || creatingItem.type === "calculator") {
       const editMode = Evolu.NonEmptyString100.from("edit");
+      const noteType = Evolu.NonEmptyString100.from(creatingItem.type);
       const result = insert("note", {
         title: parsedName.value,
         content: null,
         folderId: selectedFolderId,
         viewMode: editMode.ok ? editMode.value : null,
+        noteType: noteType.ok ? noteType.value : null,
       });
       if (result.ok) {
         setSelectedNoteId(result.value.id);
@@ -409,6 +425,8 @@ export function Sidebar() {
               >
                 {creatingItem.type === "folder" ? (
                   <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : creatingItem.type === "calculator" ? (
+                  <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
                 ) : (
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
@@ -466,7 +484,11 @@ export function Sidebar() {
       {note.isPinned === Evolu.sqliteTrue && (
         <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />
       )}
-      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {note.noteType === "calculator" ? (
+        <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+      ) : (
+        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+      )}
       {editingId === note.id ? (
         <Input
           ref={editInputRef}
@@ -578,10 +600,23 @@ export function Sidebar() {
                   className="h-6 w-6"
                   onClick={handleCreateNote}
                 >
-                  <Plus className="h-4 w-4" />
+                  <FileText className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>New Note</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleCreateCalculator}
+                >
+                  <Calculator className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New Calculator</TooltipContent>
             </Tooltip>
           </div>
         </div>
@@ -607,6 +642,8 @@ export function Sidebar() {
               >
                 {creatingItem.type === "folder" ? (
                   <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : creatingItem.type === "calculator" ? (
+                  <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
                 ) : (
                   <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 )}

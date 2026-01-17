@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Edit3, Eye, Pin, PinOff } from "lucide-react";
+import { Edit3, Eye, Pin, PinOff, Calculator } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import * as Evolu from "@evolu/common";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useEvolu, notesQuery } from "@/lib/evolu";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import { useQuery } from "@evolu/react";
+import { CalculatorEditor } from "./CalculatorEditor";
 
 export function EditorPanel() {
   const { update } = useEvolu();
@@ -117,6 +118,9 @@ export function EditorPanel() {
     return () => clearTimeout(timer);
   }, [title, content, saveNote]);
 
+  // Check if current note is a calculator note
+  const isCalculatorNote = selectedNote?.noteType === "calculator";
+
   if (!selectedNote) {
     return (
       <main className="flex flex-1 items-center justify-center bg-background">
@@ -154,6 +158,18 @@ export function EditorPanel() {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Calculator indicator for calculator notes */}
+            {isCalculatorNote && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex h-8 w-8 items-center justify-center">
+                    <Calculator className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>Calculator Note</TooltipContent>
+              </Tooltip>
+            )}
+
             {/* Pin button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -175,37 +191,46 @@ export function EditorPanel() {
               </TooltipContent>
             </Tooltip>
 
-            {/* Edit/Preview toggle button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={currentMode === "edit" ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={toggleMode}
-                >
-                  {currentMode === "edit" ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <Edit3 className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {currentMode === "edit" ? "Preview" : "Edit"}
-              </TooltipContent>
-            </Tooltip>
+            {/* Edit/Preview toggle button - only for regular notes */}
+            {!isCalculatorNote && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={currentMode === "edit" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={toggleMode}
+                  >
+                    {currentMode === "edit" ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <Edit3 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {currentMode === "edit" ? "Preview" : "Edit"}
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
 
         {/* Editor/Preview area */}
         <div
           className={cn(
-            "flex-1 overflow-auto",
+            "flex-1 overflow-hidden",
             sidebarCollapsed && "md:pl-10"
           )}
         >
-          {currentMode === "edit" ? (
+          {isCalculatorNote ? (
+            <CalculatorEditor
+              content={content}
+              onChange={setContent}
+              onBlur={saveNote}
+              autoFocus
+            />
+          ) : currentMode === "edit" ? (
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -217,7 +242,7 @@ export function EditorPanel() {
               placeholder="Start writing in Markdown..."
             />
           ) : (
-            <div className="prose prose-neutral dark:prose-invert max-w-none p-4">
+            <div className="prose prose-neutral dark:prose-invert max-w-none p-4 overflow-auto h-full">
               {content ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {content}
