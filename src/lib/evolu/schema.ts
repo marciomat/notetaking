@@ -7,6 +7,9 @@ export type FolderId = typeof FolderId.Type;
 export const NoteId = Evolu.id("Note");
 export type NoteId = typeof NoteId.Type;
 
+export const SettingsId = Evolu.id("Settings");
+export type SettingsId = typeof SettingsId.Type;
+
 // Define the database schema
 // System columns (createdAt, updatedAt, isDeleted, ownerId) are added automatically
 export const Schema = {
@@ -27,6 +30,11 @@ export const Schema = {
     viewMode: Evolu.nullOr(Evolu.NonEmptyString100),
     // Whether the note is pinned (stays at top of list)
     isPinned: Evolu.nullOr(Evolu.SqliteBoolean),
+  },
+  settings: {
+    id: SettingsId,
+    // Track the last note that was viewed (syncs across devices)
+    lastSeenNoteId: Evolu.nullOr(NoteId),
   },
 };
 

@@ -22,3 +22,4 @@ Note-taking web app PWA
 10. When a note or a folder is selected (or mouse hover) it will show 2 icons: one for renaming it, another for deleting it. Before deleting the user have to confirm the action through a pop-up window
 11. The order of items on the sidebar. Folders will always be first. Items should be sorted alphabetically by the title (but Folders will always be at the top).
 12. Notes can be pinned by clicking on a 'Pin' button on the toolbar to the left of the toggle button `Preview/Edit`. When a note is pinned, it will remain at the top of the list on the Sidebar. If more than one note is pinned, they will follow alphabetical order
+13. When the app opens, if an Evolu database is already present, it should open the item that was last seen. And the `last seen` item should also be sync'ed between devices.

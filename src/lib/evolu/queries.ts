@@ -71,3 +71,12 @@ export const createSubfoldersQuery = (parentId: FolderId | null) =>
 
     return query;
   });
+
+// Query for user settings
+export const settingsQuery = evolu.createQuery((db) =>
+  db
+    .selectFrom("settings")
+    .select(["id", "lastSeenNoteId", "updatedAt"])
+    .where("isDeleted", "is not", Evolu.sqliteTrue)
+    .limit(1),
+);

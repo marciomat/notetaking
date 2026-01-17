@@ -89,6 +89,48 @@ export function Sidebar() {
     }
   }, []);
 
+  // Auto-expand parent folders when a note is selected
+  useEffect(() => {
+    if (!selectedNoteId) return;
+
+    const selectedNote = notes.find((n) => n.id === selectedNoteId);
+    if (!selectedNote?.folderId) return;
+
+    // Build a map of folder IDs to their parent IDs for quick lookup
+    const folderParentMap = new Map<string, string | null>();
+    folders.forEach((folder) => {
+      folderParentMap.set(folder.id, folder.parentId);
+    });
+
+    // Recursively find all parent folders
+    const getParentFolderChain = (folderId: string): string[] => {
+      const chain: string[] = [folderId];
+      let currentId: string | null = folderId;
+
+      while (currentId) {
+        const parentId = folderParentMap.get(currentId);
+        if (parentId) {
+          chain.push(parentId);
+          currentId = parentId;
+        } else {
+          break;
+        }
+      }
+
+      return chain;
+    };
+
+    // Get all parent folders for the note's folder
+    const foldersToExpand = getParentFolderChain(selectedNote.folderId);
+
+    // Expand all parent folders
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      foldersToExpand.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [selectedNoteId, notes, folders]);
+
   const startEdit = useCallback((id: string, currentName: string, e?: React.MouseEvent | React.TouchEvent) => {
     e?.stopPropagation();
     setEditingId(id);

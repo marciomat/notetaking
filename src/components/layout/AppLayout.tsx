@@ -15,6 +15,9 @@ import {
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import { cn } from "@/lib/utils";
 import type { AppOwner } from "@evolu/common";
+import { useEvolu, settingsQuery, SettingsId } from "@/lib/evolu";
+import { useQuery } from "@evolu/react";
+import * as Evolu from "@evolu/common";
 
 interface AppLayoutProps {
   owner: AppOwner;
@@ -25,6 +28,8 @@ const MAX_SIDEBAR_WIDTH = 600;
 const COLLAPSE_WIDTH = 56; // Same as the left padding when collapsed
 
 export function AppLayout({ owner }: AppLayoutProps) {
+  const { insert, update } = useEvolu();
+  const settings = useQuery(settingsQuery);
   const {
     sidebarOpen,
     setSidebarOpen,
@@ -32,10 +37,55 @@ export function AppLayout({ owner }: AppLayoutProps) {
     setSidebarWidth,
     sidebarCollapsed,
     setSidebarCollapsed,
+    selectedNoteId,
+    setSelectedNoteId,
   } = useNoteStore();
 
   const [isResizing, setIsResizing] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [creatingSettings, setCreatingSettings] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+
+  // On mount: restore last seen note from settings
+  useEffect(() => {
+    if (initialLoadDone) return;
+
+    const settingsRow = settings[0];
+    if (settingsRow?.lastSeenNoteId && !selectedNoteId) {
+      setSelectedNoteId(settingsRow.lastSeenNoteId);
+    }
+    setInitialLoadDone(true);
+  }, [settings, selectedNoteId, setSelectedNoteId, initialLoadDone]);
+
+  // Update settings when selected note changes
+  useEffect(() => {
+    if (!initialLoadDone || !selectedNoteId) return;
+
+    const settingsRow = settings[0];
+
+    if (settingsRow) {
+      // Update existing settings
+      if (settingsRow.lastSeenNoteId !== selectedNoteId) {
+        update("settings", {
+          id: settingsRow.id,
+          lastSeenNoteId: selectedNoteId,
+        });
+      }
+    } else if (!creatingSettings) {
+      // Create settings row if it doesn't exist (Evolu will generate the ID)
+      setCreatingSettings(true);
+      insert("settings", {
+        lastSeenNoteId: selectedNoteId,
+      });
+    }
+  }, [selectedNoteId, settings, update, insert, initialLoadDone, creatingSettings]);
+
+  // Reset creatingSettings flag once settings row appears
+  useEffect(() => {
+    if (creatingSettings && settings[0]) {
+      setCreatingSettings(false);
+    }
+  }, [creatingSettings, settings]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
