@@ -23,6 +23,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useEvolu, foldersQuery, notesQuery } from "@/lib/evolu";
 import type { FolderId, NoteId } from "@/lib/evolu";
@@ -44,6 +54,18 @@ export function Sidebar() {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set()
   );
+
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    type: "note" | "folder" | null;
+    id: NoteId | FolderId | null;
+    name: string;
+  }>({
+    open: false,
+    type: null,
+    id: null,
+    name: "",
+  });
 
   // Close sidebar on mobile after selecting a note
   const closeSidebarOnMobile = useCallback(() => {
@@ -83,20 +105,42 @@ export function Sidebar() {
     });
   };
 
-  const handleDeleteNote = (id: NoteId, e: React.MouseEvent) => {
+  const handleDeleteNote = (note: (typeof notes)[number], e: React.MouseEvent) => {
     e.stopPropagation();
-    update("note", { id, isDeleted: Evolu.sqliteTrue });
-    if (selectedNoteId === id) {
-      setSelectedNoteId(null);
-    }
+    setDeleteDialog({
+      open: true,
+      type: "note",
+      id: note.id,
+      name: note.title,
+    });
   };
 
-  const handleDeleteFolder = (id: FolderId, e: React.MouseEvent) => {
+  const handleDeleteFolder = (folder: (typeof folders)[number], e: React.MouseEvent) => {
     e.stopPropagation();
-    update("folder", { id, isDeleted: Evolu.sqliteTrue });
-    if (selectedFolderId === id) {
-      setSelectedFolderId(null);
+    setDeleteDialog({
+      open: true,
+      type: "folder",
+      id: folder.id,
+      name: folder.name,
+    });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteDialog.id || !deleteDialog.type) return;
+
+    if (deleteDialog.type === "note") {
+      update("note", { id: deleteDialog.id as NoteId, isDeleted: Evolu.sqliteTrue });
+      if (selectedNoteId === deleteDialog.id) {
+        setSelectedNoteId(null);
+      }
+    } else if (deleteDialog.type === "folder") {
+      update("folder", { id: deleteDialog.id as FolderId, isDeleted: Evolu.sqliteTrue });
+      if (selectedFolderId === deleteDialog.id) {
+        setSelectedFolderId(null);
+      }
     }
+
+    setDeleteDialog({ open: false, type: null, id: null, name: "" });
   };
 
   // Get root folders (no parent)
@@ -156,7 +200,7 @@ export function Sidebar() {
             variant="ghost"
             size="icon"
             className="h-6 w-6 opacity-0 group-hover:opacity-100"
-            onClick={(e) => handleDeleteFolder(folder.id, e)}
+            onClick={(e) => handleDeleteFolder(folder, e)}
           >
             <Trash2 className="h-3 w-3 text-muted-foreground" />
           </Button>
@@ -199,7 +243,7 @@ export function Sidebar() {
         variant="ghost"
         size="icon"
         className="h-6 w-6 opacity-0 group-hover:opacity-100"
-        onClick={(e) => handleDeleteNote(note.id, e)}
+        onClick={(e) => handleDeleteNote(note, e)}
       >
         <Trash2 className="h-3 w-3 text-muted-foreground" />
       </Button>
@@ -299,6 +343,33 @@ export function Sidebar() {
           </div>
         </ScrollArea>
       </aside>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteDialog({ open: false, type: null, id: null, name: "" });
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteDialog.type}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &quot;{deleteDialog.name}&quot;?
+              {deleteDialog.type === "folder" && " This will also delete all notes inside this folder."}
+              {" "}This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 }
