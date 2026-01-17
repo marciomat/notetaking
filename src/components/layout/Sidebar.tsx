@@ -72,6 +72,13 @@ export function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
+  // State for creating new items - shows input immediately before database insert
+  const [creatingItem, setCreatingItem] = useState<{
+    type: "note" | "folder";
+    defaultName: string;
+    name: string;
+  } | null>(null);
+
   // Callback ref to focus and select text when input is mounted
   const editInputRef = useCallback((node: HTMLInputElement | null) => {
     if (node) {
@@ -143,47 +150,69 @@ export function Sidebar() {
   };
 
   const handleCreateNote = () => {
-    const result = insert("note", {
-      title: Evolu.NonEmptyString100.orThrow("Untitled Note"),
-      content: null,
-      folderId: selectedFolderId,
-    });
-    if (result.ok) {
-      setSelectedNoteId(result.value.id);
-
-      // Expand parent folder if creating note inside a folder
-      if (selectedFolderId) {
-        setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
-      }
-
-      // Wait for the note to appear in query results before editing
-      setTimeout(() => {
-        setEditingId(result.value.id);
-        setEditingName("Untitled Note");
-      }, 50);
-
-      // Don't close sidebar yet - wait for user to finish editing the title
+    // Expand parent folder if creating note inside a folder
+    if (selectedFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
     }
+    // Show input immediately - keyboard will appear because this is direct user interaction
+    setCreatingItem({
+      type: "note",
+      defaultName: "Untitled Note",
+      name: "Untitled Note",
+    });
   };
 
   const handleCreateFolder = () => {
-    const result = insert("folder", {
-      name: Evolu.NonEmptyString100.orThrow("New Folder"),
-      parentId: selectedFolderId,
-    });
-    if (result.ok) {
-      // Expand parent folder if creating subfolder
-      if (selectedFolderId) {
-        setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
-      }
-
-      // Wait for the folder to appear in query results before editing
-      setTimeout(() => {
-        setEditingId(result.value.id);
-        setEditingName("New Folder");
-      }, 50);
+    // Expand parent folder if creating subfolder
+    if (selectedFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
     }
+    // Show input immediately - keyboard will appear because this is direct user interaction
+    setCreatingItem({
+      type: "folder",
+      defaultName: "New Folder",
+      name: "New Folder",
+    });
   };
+
+  const saveCreatingItem = useCallback(() => {
+    if (!creatingItem) return;
+
+    const trimmedName = creatingItem.name.trim();
+    const nameToUse = trimmedName || creatingItem.defaultName;
+    const parsedName = Evolu.NonEmptyString100.from(nameToUse);
+
+    if (!parsedName.ok) {
+      setCreatingItem(null);
+      return;
+    }
+
+    if (creatingItem.type === "note") {
+      const result = insert("note", {
+        title: parsedName.value,
+        content: null,
+        folderId: selectedFolderId,
+      });
+      if (result.ok) {
+        setSelectedNoteId(result.value.id);
+        // Close sidebar on mobile after creating note
+        if (window.innerWidth < 768) {
+          setSidebarOpen(false);
+        }
+      }
+    } else {
+      insert("folder", {
+        name: parsedName.value,
+        parentId: selectedFolderId,
+      });
+    }
+
+    setCreatingItem(null);
+  }, [creatingItem, selectedFolderId, insert, setSelectedNoteId, setSidebarOpen]);
+
+  const cancelCreatingItem = useCallback(() => {
+    setCreatingItem(null);
+  }, []);
 
   const handleDeleteNote = (note: (typeof notes)[number], e?: React.MouseEvent | React.TouchEvent) => {
     e?.stopPropagation();
@@ -322,6 +351,38 @@ export function Sidebar() {
 
         {isExpanded && (
           <>
+            {/* Creating new item input - shown inside folder when this folder is selected */}
+            {creatingItem && selectedFolderId === folder.id && (
+              <div
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
+                style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
+              >
+                {creatingItem.type === "folder" ? (
+                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <Input
+                  ref={editInputRef}
+                  value={creatingItem.name}
+                  onChange={(e) =>
+                    setCreatingItem((prev) =>
+                      prev ? { ...prev, name: e.target.value } : null
+                    )
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      saveCreatingItem();
+                    } else if (e.key === "Escape") {
+                      cancelCreatingItem();
+                    }
+                  }}
+                  onBlur={saveCreatingItem}
+                  className="h-6 flex-1 text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
             {subfolders.map((subfolder) => renderFolder(subfolder, depth + 1))}
             {folderNotes.map((note) => renderNote(note, depth + 1))}
           </>
@@ -470,6 +531,39 @@ export function Sidebar() {
         {/* Notes and folders list */}
         <ScrollArea className="flex-1">
           <div className="p-2">
+            {/* Creating new item input - shown at root level when no folder is selected */}
+            {creatingItem && !selectedFolderId && (
+              <div
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
+                style={{ paddingLeft: "28px" }}
+              >
+                {creatingItem.type === "folder" ? (
+                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <Input
+                  ref={editInputRef}
+                  value={creatingItem.name}
+                  onChange={(e) =>
+                    setCreatingItem((prev) =>
+                      prev ? { ...prev, name: e.target.value } : null
+                    )
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      saveCreatingItem();
+                    } else if (e.key === "Escape") {
+                      cancelCreatingItem();
+                    }
+                  }}
+                  onBlur={saveCreatingItem}
+                  className="h-6 flex-1 text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            )}
+
             {/* Root folders */}
             {rootFolders.map((folder) => renderFolder(folder))}
 
@@ -477,7 +571,7 @@ export function Sidebar() {
             {rootNotes.map((note) => renderNote(note))}
 
             {/* Empty state */}
-            {rootFolders.length === 0 && rootNotes.length === 0 && (
+            {rootFolders.length === 0 && rootNotes.length === 0 && !creatingItem && (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <FileText className="h-8 w-8 text-muted-foreground/50" />
                 <p className="mt-2 text-sm text-muted-foreground">
