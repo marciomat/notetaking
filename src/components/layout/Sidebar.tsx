@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Plus,
   FolderPlus,
@@ -11,6 +11,7 @@ import {
   Trash2,
   PanelLeftClose,
   X,
+  Pencil,
 } from "lucide-react";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
@@ -70,6 +71,27 @@ export function Sidebar() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus and select text when editing starts
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      // Small delay to ensure input is rendered and visible
+      const timer = setTimeout(() => {
+        if (editInputRef.current) {
+          editInputRef.current.focus();
+          editInputRef.current.select();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [editingId]);
+
+  const startEdit = useCallback((id: string, currentName: string, e?: React.MouseEvent | React.TouchEvent) => {
+    e?.stopPropagation();
+    setEditingId(id);
+    setEditingName(currentName);
+  }, []);
 
   const cancelEdit = useCallback((type: "note" | "folder") => {
     setEditingId(null);
@@ -134,13 +156,17 @@ export function Sidebar() {
     });
     if (result.ok) {
       setSelectedNoteId(result.value.id);
-      setEditingId(result.value.id);
-      setEditingName("Untitled Note");
 
       // Expand parent folder if creating note inside a folder
       if (selectedFolderId) {
         setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
       }
+
+      // Wait for the note to appear in query results before editing
+      setTimeout(() => {
+        setEditingId(result.value.id);
+        setEditingName("Untitled Note");
+      }, 50);
 
       // Don't close sidebar yet - wait for user to finish editing the title
     }
@@ -152,13 +178,16 @@ export function Sidebar() {
       parentId: selectedFolderId,
     });
     if (result.ok) {
-      setEditingId(result.value.id);
-      setEditingName("New Folder");
-
       // Expand parent folder if creating subfolder
       if (selectedFolderId) {
         setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
       }
+
+      // Wait for the folder to appear in query results before editing
+      setTimeout(() => {
+        setEditingId(result.value.id);
+        setEditingName("New Folder");
+      }, 50);
     }
   };
 
@@ -254,6 +283,7 @@ export function Sidebar() {
           <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
           {editingId === folder.id ? (
             <Input
+              ref={editInputRef}
               value={editingName}
               onChange={(e) => setEditingName(e.target.value)}
               onKeyDown={(e) => {
@@ -264,14 +294,24 @@ export function Sidebar() {
                 }
               }}
               onBlur={() => saveEdit(folder.id, "folder")}
-              autoFocus
               className="h-6 flex-1 text-sm"
               onClick={(e) => e.stopPropagation()}
-              onFocus={(e) => e.target.select()}
             />
           ) : (
             <span className="flex-1 truncate">{folder.name}</span>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            onClick={(e) => startEdit(folder.id, folder.name, e)}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              startEdit(folder.id, folder.name, e);
+            }}
+          >
+            <Pencil className="h-3 w-3 text-muted-foreground" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -320,6 +360,7 @@ export function Sidebar() {
       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
       {editingId === note.id ? (
         <Input
+          ref={editInputRef}
           value={editingName}
           onChange={(e) => setEditingName(e.target.value)}
           onKeyDown={(e) => {
@@ -330,14 +371,24 @@ export function Sidebar() {
             }
           }}
           onBlur={() => saveEdit(note.id, "note")}
-          autoFocus
           className="h-6 flex-1 text-sm"
           onClick={(e) => e.stopPropagation()}
-          onFocus={(e) => e.target.select()}
         />
       ) : (
         <span className="flex-1 truncate">{note.title}</span>
       )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+        onClick={(e) => startEdit(note.id, note.title, e)}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          startEdit(note.id, note.title, e);
+        }}
+      >
+        <Pencil className="h-3 w-3 text-muted-foreground" />
+      </Button>
       <Button
         variant="ghost"
         size="icon"
