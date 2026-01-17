@@ -71,21 +71,15 @@ export function Sidebar() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-  const editInputRef = useRef<HTMLInputElement>(null);
 
-  // Focus and select text when editing starts
-  useEffect(() => {
-    if (editingId && editInputRef.current) {
-      // Small delay to ensure input is rendered and visible
-      const timer = setTimeout(() => {
-        if (editInputRef.current) {
-          editInputRef.current.focus();
-          editInputRef.current.select();
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+  // Callback ref to focus and select text when input is mounted
+  const editInputRef = useCallback((node: HTMLInputElement | null) => {
+    if (node) {
+      // Focus immediately when the input is mounted
+      node.focus();
+      node.select();
     }
-  }, [editingId]);
+  }, []);
 
   const startEdit = useCallback((id: string, currentName: string, e?: React.MouseEvent | React.TouchEvent) => {
     e?.stopPropagation();
