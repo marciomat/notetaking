@@ -387,6 +387,7 @@ export function Sidebar() {
 
     // Start dragging if moved more than 10px
     if (!isTouchDragging && (dx > 10 || dy > 10)) {
+      e.preventDefault(); // Prevent scrolling immediately when drag starts
       setDraggedNoteId(noteId);
       setIsTouchDragging(true);
       hasDraggedRef.current = true;
@@ -397,7 +398,7 @@ export function Sidebar() {
     }
 
     // If we're touch dragging, find the drop target under the touch point
-    if (isTouchDragging && draggedNoteId) {
+    if (isTouchDragging || hasDraggedRef.current) {
       e.preventDefault(); // Prevent scrolling while dragging
 
       // Find element under touch point
@@ -804,7 +805,7 @@ export function Sidebar() {
         <Separator />
 
         {/* Notes and folders list */}
-        <ScrollArea className="flex-1" onClick={(e) => {
+        <ScrollArea className={cn("flex-1", isTouchDragging && "touch-none")} onClick={(e) => {
           // Clear selection if clicking on empty area
           const target = e.target as HTMLElement;
           // Check if click is on ScrollArea viewport or the container div (not on items)
@@ -817,7 +818,8 @@ export function Sidebar() {
             ref={sidebarContainerRef}
             className={cn(
               "p-2 min-h-full sidebar-container",
-              dropTargetFolderId === "root" && draggedNoteId && "bg-primary/10"
+              dropTargetFolderId === "root" && draggedNoteId && "bg-primary/10",
+              isTouchDragging && "touch-none" // Prevent scrolling while dragging
             )}
             onDragOver={(e) => handleDragOver(e, "root")}
             onDragLeave={handleDragLeave}
