@@ -105,8 +105,8 @@ export function Sidebar() {
     });
   };
 
-  const handleDeleteNote = (note: (typeof notes)[number], e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteNote = (note: (typeof notes)[number], e?: React.MouseEvent | React.TouchEvent) => {
+    e?.stopPropagation();
     setDeleteDialog({
       open: true,
       type: "note",
@@ -115,8 +115,8 @@ export function Sidebar() {
     });
   };
 
-  const handleDeleteFolder = (folder: (typeof folders)[number], e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteFolder = (folder: (typeof folders)[number], e?: React.MouseEvent | React.TouchEvent) => {
+    e?.stopPropagation();
     setDeleteDialog({
       open: true,
       type: "folder",
@@ -202,9 +202,8 @@ export function Sidebar() {
             className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
             onClick={(e) => handleDeleteFolder(folder, e)}
             onTouchEnd={(e) => {
-              e.stopPropagation();
               e.preventDefault();
-              handleDeleteFolder(folder, e as any);
+              handleDeleteFolder(folder, e);
             }}
           >
             <Trash2 className="h-3 w-3 text-muted-foreground" />
@@ -250,9 +249,8 @@ export function Sidebar() {
         className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
         onClick={(e) => handleDeleteNote(note, e)}
         onTouchEnd={(e) => {
-          e.stopPropagation();
           e.preventDefault();
-          handleDeleteNote(note, e as any);
+          handleDeleteNote(note, e);
         }}
       >
         <Trash2 className="h-3 w-3 text-muted-foreground" />
