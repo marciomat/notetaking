@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface CalculatorEditorProps {
@@ -87,11 +87,34 @@ export function CalculatorEditor({
   autoFocus,
 }: CalculatorEditorProps) {
   const [localContent, setLocalContent] = useState(content);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync with external content changes
   useEffect(() => {
     setLocalContent(content);
   }, [content]);
+
+  // Handle iOS keyboard visibility using visualViewport API
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const handleResize = () => {
+      // Calculate keyboard height as difference between window height and viewport height
+      const keyboardH = window.innerHeight - viewport.height;
+      // Only set if keyboard is actually showing (height > 100px to avoid false positives)
+      setKeyboardHeight(keyboardH > 100 ? keyboardH : 0);
+    };
+
+    viewport.addEventListener("resize", handleResize);
+    viewport.addEventListener("scroll", handleResize);
+
+    return () => {
+      viewport.removeEventListener("resize", handleResize);
+      viewport.removeEventListener("scroll", handleResize);
+    };
+  }, []);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -123,7 +146,7 @@ export function CalculatorEditor({
   const hasValues = lineResults.some((r) => r !== null);
 
   return (
-    <div className="flex h-full flex-col">
+    <div ref={containerRef} className="relative flex h-full flex-col">
       {/* Main editor area with results */}
       <div className="relative flex-1 overflow-hidden">
         <div className="flex h-full">
@@ -138,7 +161,7 @@ export function CalculatorEditor({
                 "h-full min-h-full w-full resize-none border-none bg-transparent p-4 font-mono text-sm shadow-none focus-visible:outline-none focus-visible:ring-0",
                 "leading-7" // Match line height with results
               )}
-              placeholder="Enter calculations...&#10;&#10;Examples:&#10;Coffee: 5.50&#10;Lunch: 12.00&#10;100 + 50&#10;Tax: 15%"
+              placeholder="Enter items one per line. Example: Lunch: 25, Coffee: 5, Bus: 3"
               style={{ lineHeight: "1.75rem" }}
             />
           </div>
@@ -170,9 +193,15 @@ export function CalculatorEditor({
         </div>
       </div>
 
-      {/* Total bar */}
+      {/* Total bar - positions above keyboard on mobile */}
       {hasValues && (
-        <div className="flex shrink-0 items-center justify-between border-t border-border bg-muted/50 px-4 py-3">
+        <div
+          className={cn(
+            "flex shrink-0 items-center justify-between border-t border-border bg-muted/50 px-4 py-3",
+            keyboardHeight > 0 && "fixed left-0 right-0 z-50"
+          )}
+          style={keyboardHeight > 0 ? { bottom: `${keyboardHeight + 44}px` } : undefined}
+        >
           <span className="text-sm font-medium text-muted-foreground">
             Total
           </span>
