@@ -149,6 +149,11 @@ export function Sidebar() {
     });
   };
 
+  const clearSelection = () => {
+    setSelectedFolderId(null);
+    setSelectedNoteId(null);
+  };
+
   const handleCreateNote = () => {
     // Expand parent folder if creating note inside a folder
     if (selectedFolderId) {
@@ -465,7 +470,7 @@ export function Sidebar() {
       <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-background">
         {/* Sidebar header */}
         <div className="flex h-10 items-center justify-between px-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1" onClick={clearSelection}>
             {/* Desktop: Collapse button */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -473,7 +478,10 @@ export function Sidebar() {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 hidden md:flex"
-                  onClick={toggleSidebarCollapsed}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSidebarCollapsed();
+                  }}
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </Button>
@@ -486,17 +494,20 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               className="h-6 w-6 md:hidden"
-              onClick={() => setSidebarOpen(false)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSidebarOpen(false);
+              }}
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Close sidebar</span>
             </Button>
 
-            <span className="text-xs font-medium uppercase text-muted-foreground">
+            <span className="text-xs font-medium uppercase text-muted-foreground cursor-pointer">
               Notes
             </span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -529,8 +540,16 @@ export function Sidebar() {
         <Separator />
 
         {/* Notes and folders list */}
-        <ScrollArea className="flex-1">
-          <div className="p-2">
+        <ScrollArea className="flex-1" onClick={(e) => {
+          // Clear selection if clicking on empty area
+          const target = e.target as HTMLElement;
+          // Check if click is on ScrollArea viewport or the container div (not on items)
+          if (target.hasAttribute('data-radix-scroll-area-viewport') ||
+              target.classList.contains('sidebar-container')) {
+            clearSelection();
+          }
+        }}>
+          <div className="p-2 min-h-full sidebar-container">
             {/* Creating new item input - shown at root level when no folder is selected */}
             {creatingItem && !selectedFolderId && (
               <div
