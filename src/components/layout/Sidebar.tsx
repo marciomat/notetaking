@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   X,
   Pencil,
+  Pin,
 } from "lucide-react";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
@@ -419,6 +420,10 @@ export function Sidebar() {
         }}
         onClick={handleSelect}
       >
+      {/* Pin icon - always visible when note is pinned, before note icon */}
+      {note.isPinned === Evolu.sqliteTrue && (
+        <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />
+      )}
       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
       {editingId === note.id ? (
         <Input

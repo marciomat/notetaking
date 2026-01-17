@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Edit3, Eye } from "lucide-react";
+import { Edit3, Eye, Pin, PinOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import * as Evolu from "@evolu/common";
@@ -62,6 +62,17 @@ export function EditorPanel() {
         viewMode: parsedMode.value,
       });
     }
+  };
+
+  // Toggle pin status for current note
+  const togglePin = () => {
+    if (!selectedNoteId || !selectedNote) return;
+
+    const isPinned = selectedNote.isPinned === Evolu.sqliteTrue;
+    update("note", {
+      id: selectedNoteId,
+      isPinned: isPinned ? Evolu.sqliteFalse : Evolu.sqliteTrue,
+    });
   };
 
   // Debounced save function
@@ -142,6 +153,28 @@ export function EditorPanel() {
           </div>
 
           <div className="flex items-center gap-1">
+            {/* Pin button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={selectedNote?.isPinned === Evolu.sqliteTrue ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={togglePin}
+                >
+                  {selectedNote?.isPinned === Evolu.sqliteTrue ? (
+                    <PinOff className="h-4 w-4" />
+                  ) : (
+                    <Pin className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {selectedNote?.isPinned === Evolu.sqliteTrue ? "Unpin" : "Pin"}
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Edit/Preview toggle button */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

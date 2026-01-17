@@ -12,34 +12,36 @@ export const foldersQuery = evolu.createQuery((db) =>
     .where("isDeleted", "is not", Evolu.sqliteTrue)
     .where("name", "is not", null)
     .$narrowType<{ name: Evolu.kysely.NotNull }>()
-    .orderBy("name"),
+    .orderBy(Evolu.kysely.sql`name collate nocase`),
 );
 
 export type FolderRow = typeof foldersQuery.Row;
 
 // Query for all notes (not deleted)
+// Pinned notes appear first, then unpinned notes, both sorted alphabetically
 export const notesQuery = evolu.createQuery((db) =>
   db
     .selectFrom("note")
-    .select(["id", "title", "content", "folderId", "viewMode", "createdAt", "updatedAt"])
+    .select(["id", "title", "content", "folderId", "viewMode", "isPinned", "createdAt", "updatedAt"])
     .where("isDeleted", "is not", Evolu.sqliteTrue)
     .where("title", "is not", null)
     .$narrowType<{ title: Evolu.kysely.NotNull }>()
-    .orderBy("updatedAt", "desc"),
+    .orderBy(Evolu.kysely.sql`isPinned desc, title collate nocase`),
 );
 
 export type NoteRow = typeof notesQuery.Row;
 
 // Query for notes in a specific folder
+// Pinned notes appear first, then unpinned notes, both sorted alphabetically
 export const createNotesInFolderQuery = (folderId: FolderId | null) =>
   evolu.createQuery((db) => {
     let query = db
       .selectFrom("note")
-      .select(["id", "title", "content", "folderId", "viewMode", "createdAt", "updatedAt"])
+      .select(["id", "title", "content", "folderId", "viewMode", "isPinned", "createdAt", "updatedAt"])
       .where("isDeleted", "is not", Evolu.sqliteTrue)
       .where("title", "is not", null)
       .$narrowType<{ title: Evolu.kysely.NotNull }>()
-      .orderBy("updatedAt", "desc");
+      .orderBy(Evolu.kysely.sql`isPinned desc, title collate nocase`);
 
     if (folderId === null) {
       query = query.where("folderId", "is", null);
@@ -59,7 +61,7 @@ export const createSubfoldersQuery = (parentId: FolderId | null) =>
       .where("isDeleted", "is not", Evolu.sqliteTrue)
       .where("name", "is not", null)
       .$narrowType<{ name: Evolu.kysely.NotNull }>()
-      .orderBy("name");
+      .orderBy(Evolu.kysely.sql`name collate nocase`);
 
     if (parentId === null) {
       query = query.where("parentId", "is", null);

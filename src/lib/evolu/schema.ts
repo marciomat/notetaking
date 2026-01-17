@@ -25,6 +25,8 @@ export const Schema = {
     folderId: Evolu.nullOr(FolderId),
     // View mode preference: "edit" or "preview" (default: "edit")
     viewMode: Evolu.nullOr(Evolu.NonEmptyString100),
+    // Whether the note is pinned (stays at top of list)
+    isPinned: Evolu.nullOr(Evolu.SqliteBoolean),
   },
 };
 
