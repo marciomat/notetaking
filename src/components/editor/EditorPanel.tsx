@@ -71,7 +71,8 @@ export function EditorPanel() {
     const isPinned = selectedNote.isPinned === Evolu.sqliteTrue;
     update("note", {
       id: selectedNoteId,
-      isPinned: isPinned ? Evolu.sqliteFalse : Evolu.sqliteTrue,
+      // Use null when unpinning so it sorts the same as never-pinned items
+      isPinned: isPinned ? null : Evolu.sqliteTrue,
     });
   };
 
