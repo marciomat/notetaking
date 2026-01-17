@@ -21,7 +21,7 @@ export type FolderRow = typeof foldersQuery.Row;
 export const notesQuery = evolu.createQuery((db) =>
   db
     .selectFrom("note")
-    .select(["id", "title", "content", "folderId", "createdAt", "updatedAt"])
+    .select(["id", "title", "content", "folderId", "viewMode", "createdAt", "updatedAt"])
     .where("isDeleted", "is not", Evolu.sqliteTrue)
     .where("title", "is not", null)
     .$narrowType<{ title: Evolu.kysely.NotNull }>()
@@ -35,7 +35,7 @@ export const createNotesInFolderQuery = (folderId: FolderId | null) =>
   evolu.createQuery((db) => {
     let query = db
       .selectFrom("note")
-      .select(["id", "title", "content", "folderId", "createdAt", "updatedAt"])
+      .select(["id", "title", "content", "folderId", "viewMode", "createdAt", "updatedAt"])
       .where("isDeleted", "is not", Evolu.sqliteTrue)
       .where("title", "is not", null)
       .$narrowType<{ title: Evolu.kysely.NotNull }>()

@@ -193,10 +193,12 @@ export function Sidebar() {
     }
 
     if (creatingItem.type === "note") {
+      const editMode = Evolu.NonEmptyString100.from("edit");
       const result = insert("note", {
         title: parsedName.value,
         content: null,
         folderId: selectedFolderId,
+        viewMode: editMode.ok ? editMode.value : null,
       });
       if (result.ok) {
         setSelectedNoteId(result.value.id);

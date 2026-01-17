@@ -23,6 +23,8 @@ export const Schema = {
     content: Evolu.nullOr(Evolu.String),
     // Note can optionally belong to a folder
     folderId: Evolu.nullOr(FolderId),
+    // View mode preference: "edit" or "preview" (default: "edit")
+    viewMode: Evolu.nullOr(Evolu.NonEmptyString100),
   },
 };
 

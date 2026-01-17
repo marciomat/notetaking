@@ -24,16 +24,14 @@ export function EditorPanel() {
   const notes = useQuery(notesQuery);
   const { selectedNoteId, sidebarCollapsed } = useNoteStore();
 
-  // Track view mode (edit/preview) per note
-  const [noteModes, setNoteModes] = useState<Map<string, "edit" | "preview">>(new Map());
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
   // Find the selected note
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
-  // Get current note's mode (default to edit for new notes)
-  const currentMode = selectedNoteId ? (noteModes.get(selectedNoteId) ?? "edit") : "edit";
+  // Get current note's mode from database (default to "edit" for new notes)
+  const currentMode = selectedNote?.viewMode ?? "edit";
 
   // Sync local state with selected note
   useEffect(() => {
@@ -49,15 +47,20 @@ export function EditorPanel() {
   // Toggle between edit and preview mode for current note
   const toggleMode = () => {
     if (!selectedNoteId) return;
-    setNoteModes((prev) => {
-      const next = new Map(prev);
-      const current = next.get(selectedNoteId) ?? "preview";
-      next.set(selectedNoteId, current === "edit" ? "preview" : "edit");
-      return next;
-    });
-    // Save when switching from edit to preview
+
+    // Save content when switching from edit to preview
     if (currentMode === "edit") {
       saveNote();
+    }
+
+    // Update the view mode in the database
+    const newMode = currentMode === "edit" ? "preview" : "edit";
+    const parsedMode = Evolu.NonEmptyString100.from(newMode);
+    if (parsedMode.ok) {
+      update("note", {
+        id: selectedNoteId,
+        viewMode: parsedMode.value,
+      });
     }
   };
 
