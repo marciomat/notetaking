@@ -5,11 +5,10 @@ import { evoluReactWebDeps } from "@evolu/react-web";
 import { createUseEvolu, EvoluProvider } from "@evolu/react";
 import { Schema } from "./schema";
 
-// Create the Evolu instance with sync enabled via the free Evolu relay
-// Evolu automatically adds the ownerId to the WebSocket URL when connecting
+// Create the Evolu instance
+// By not specifying transports, Evolu uses its default: wss://free.evoluhq.com
 export const evolu = Evolu.createEvolu(evoluReactWebDeps)(Schema, {
   name: Evolu.SimpleName.orThrow("notetaking"),
-  transports: [{ type: "WebSocket", url: "wss://free.evoluhq.com" }],
 });
 
 // Create typed hook for accessing Evolu
