@@ -7,6 +7,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { useEvolu } from "@/lib/evolu";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
+import { SetupDialog, isSetupComplete } from "@/components/onboarding/SetupDialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import type { AppOwner } from "@evolu/common";
 
@@ -14,8 +15,20 @@ function AppContent() {
   const evolu = useEvolu();
   const [owner, setOwner] = useState<AppOwner | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [showSetup, setShowSetup] = useState(false);
+  const [setupChecked, setSetupChecked] = useState(false);
+
+  // Check if setup is complete
+  useEffect(() => {
+    const setupComplete = isSetupComplete();
+    setShowSetup(!setupComplete);
+    setSetupChecked(true);
+  }, []);
 
   useEffect(() => {
+    // Don't load owner until setup check is done
+    if (!setupChecked) return;
+
     let mounted = true;
 
     evolu.appOwner
@@ -34,7 +47,13 @@ function AppContent() {
     return () => {
       mounted = false;
     };
-  }, [evolu]);
+  }, [evolu, setupChecked]);
+
+  const handleSetupComplete = () => {
+    setShowSetup(false);
+    // Reload the owner after restore
+    evolu.appOwner.then(setOwner).catch(console.error);
+  };
 
   if (error) {
     return (
@@ -49,6 +68,11 @@ function AppContent() {
         </button>
       </div>
     );
+  }
+
+  // Show setup dialog if needed
+  if (showSetup && owner) {
+    return <SetupDialog open={true} onComplete={handleSetupComplete} />;
   }
 
   if (!owner) {
