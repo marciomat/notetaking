@@ -15,6 +15,7 @@ import {
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -67,6 +68,45 @@ export function Sidebar() {
     name: "",
   });
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const cancelEdit = useCallback((type: "note" | "folder") => {
+    setEditingId(null);
+    setEditingName("");
+    // Close sidebar on mobile if canceling note edit
+    if (type === "note" && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [setSidebarOpen]);
+
+  const saveEdit = useCallback((id: string, type: "note" | "folder") => {
+    const trimmedName = editingName.trim();
+    if (!trimmedName) {
+      cancelEdit(type);
+      return;
+    }
+
+    const parsedName = Evolu.NonEmptyString100.from(trimmedName);
+    if (!parsedName.ok) {
+      cancelEdit(type);
+      return;
+    }
+
+    if (type === "folder") {
+      update("folder", { id: id as FolderId, name: parsedName.value });
+    } else {
+      update("note", { id: id as NoteId, title: parsedName.value });
+      // Close sidebar on mobile after finishing editing a note
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    }
+
+    setEditingId(null);
+    setEditingName("");
+  }, [editingName, update, setSidebarOpen, cancelEdit]);
+
   // Close sidebar on mobile after selecting a note
   const closeSidebarOnMobile = useCallback(() => {
     if (window.innerWidth < 768) {
@@ -94,15 +134,32 @@ export function Sidebar() {
     });
     if (result.ok) {
       setSelectedNoteId(result.value.id);
-      closeSidebarOnMobile();
+      setEditingId(result.value.id);
+      setEditingName("Untitled Note");
+
+      // Expand parent folder if creating note inside a folder
+      if (selectedFolderId) {
+        setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
+      }
+
+      // Don't close sidebar yet - wait for user to finish editing the title
     }
   };
 
   const handleCreateFolder = () => {
-    insert("folder", {
+    const result = insert("folder", {
       name: Evolu.NonEmptyString100.orThrow("New Folder"),
       parentId: selectedFolderId,
     });
+    if (result.ok) {
+      setEditingId(result.value.id);
+      setEditingName("New Folder");
+
+      // Expand parent folder if creating subfolder
+      if (selectedFolderId) {
+        setExpandedFolders((prev) => new Set(prev).add(selectedFolderId));
+      }
+    }
   };
 
   const handleDeleteNote = (note: (typeof notes)[number], e?: React.MouseEvent | React.TouchEvent) => {
@@ -195,7 +252,26 @@ export function Sidebar() {
             <span className="w-4" />
           )}
           <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="flex-1 truncate">{folder.name}</span>
+          {editingId === folder.id ? (
+            <Input
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  saveEdit(folder.id, "folder");
+                } else if (e.key === "Escape") {
+                  cancelEdit("folder");
+                }
+              }}
+              onBlur={() => saveEdit(folder.id, "folder")}
+              autoFocus
+              className="h-6 flex-1 text-sm"
+              onClick={(e) => e.stopPropagation()}
+              onFocus={(e) => e.target.select()}
+            />
+          ) : (
+            <span className="flex-1 truncate">{folder.name}</span>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -242,7 +318,26 @@ export function Sidebar() {
         onClick={handleSelect}
       >
       <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="flex-1 truncate">{note.title}</span>
+      {editingId === note.id ? (
+        <Input
+          value={editingName}
+          onChange={(e) => setEditingName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              saveEdit(note.id, "note");
+            } else if (e.key === "Escape") {
+              cancelEdit("note");
+            }
+          }}
+          onBlur={() => saveEdit(note.id, "note")}
+          autoFocus
+          className="h-6 flex-1 text-sm"
+          onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.target.select()}
+        />
+      ) : (
+        <span className="flex-1 truncate">{note.title}</span>
+      )}
       <Button
         variant="ghost"
         size="icon"
