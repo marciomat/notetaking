@@ -105,14 +105,20 @@ export function Sidebar() {
 
   // Prevent scrolling on entire page when touch dragging
   useEffect(() => {
-    if (isTouchDragging) {
-      document.body.style.touchAction = "none";
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.touchAction = "";
-        document.body.style.overflow = "";
-      };
-    }
+    if (!isTouchDragging) return;
+
+    const preventScroll = (e: TouchEvent) => {
+      e.preventDefault();
+    };
+
+    // Add listener with passive: false to allow preventDefault
+    document.addEventListener("touchmove", preventScroll, { passive: false });
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("touchmove", preventScroll);
+      document.body.style.overflow = "";
+    };
   }, [isTouchDragging]);
 
   // Auto-expand parent folders when a note is selected
