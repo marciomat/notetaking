@@ -24,12 +24,16 @@ export function EditorPanel() {
   const notes = useQuery(notesQuery);
   const { selectedNoteId, sidebarCollapsed } = useNoteStore();
 
-  const [isEditing, setIsEditing] = useState(false);
+  // Track view mode (edit/preview) per note
+  const [noteModes, setNoteModes] = useState<Map<string, "edit" | "preview">>(new Map());
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
 
   // Find the selected note
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
+
+  // Get current note's mode (default to edit for new notes)
+  const currentMode = selectedNoteId ? (noteModes.get(selectedNoteId) ?? "edit") : "edit";
 
   // Sync local state with selected note
   useEffect(() => {
@@ -41,6 +45,21 @@ export function EditorPanel() {
       setContent("");
     }
   }, [selectedNote]);
+
+  // Toggle between edit and preview mode for current note
+  const toggleMode = () => {
+    if (!selectedNoteId) return;
+    setNoteModes((prev) => {
+      const next = new Map(prev);
+      const current = next.get(selectedNoteId) ?? "preview";
+      next.set(selectedNoteId, current === "edit" ? "preview" : "edit");
+      return next;
+    });
+    // Save when switching from edit to preview
+    if (currentMode === "edit") {
+      saveNote();
+    }
+  };
 
   // Debounced save function
   const saveNote = useCallback(() => {
@@ -120,24 +139,25 @@ export function EditorPanel() {
           </div>
 
           <div className="flex items-center gap-1">
-            {isEditing && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      saveNote();
-                      setIsEditing(false);
-                    }}
-                  >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={currentMode === "edit" ? "secondary" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={toggleMode}
+                >
+                  {currentMode === "edit" ? (
                     <Eye className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Preview</TooltipContent>
-              </Tooltip>
-            )}
+                  ) : (
+                    <Edit3 className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {currentMode === "edit" ? "Preview" : "Edit"}
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
@@ -148,14 +168,11 @@ export function EditorPanel() {
             sidebarCollapsed && "md:pl-10"
           )}
         >
-          {isEditing ? (
+          {currentMode === "edit" ? (
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              onBlur={() => {
-                saveNote();
-                setIsEditing(false);
-              }}
+              onBlur={saveNote}
               autoFocus
               className={cn(
                 "h-full min-h-full w-full resize-none rounded-none border-none p-4 font-mono text-sm shadow-none focus-visible:ring-0"
@@ -163,17 +180,14 @@ export function EditorPanel() {
               placeholder="Start writing in Markdown..."
             />
           ) : (
-            <div
-              onClick={() => setIsEditing(true)}
-              className="prose prose-neutral dark:prose-invert max-w-none p-4 cursor-text"
-            >
+            <div className="prose prose-neutral dark:prose-invert max-w-none p-4">
               {content ? (
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {content}
                 </ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground">
-                  Click here or start writing in Markdown...
+                  No content yet. Click the edit button to start writing.
                 </p>
               )}
             </div>
