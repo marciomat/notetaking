@@ -199,8 +199,13 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100"
+            className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
             onClick={(e) => handleDeleteFolder(folder, e)}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleDeleteFolder(folder, e as any);
+            }}
           >
             <Trash2 className="h-3 w-3 text-muted-foreground" />
           </Button>
@@ -242,8 +247,13 @@ export function Sidebar() {
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 opacity-0 group-hover:opacity-100"
+        className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
         onClick={(e) => handleDeleteNote(note, e)}
+        onTouchEnd={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          handleDeleteNote(note, e as any);
+        }}
       >
         <Trash2 className="h-3 w-3 text-muted-foreground" />
       </Button>
