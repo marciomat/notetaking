@@ -23,7 +23,14 @@ import { CalculatorEditor } from "./CalculatorEditor";
 export function EditorPanel() {
   const { update } = useEvolu();
   const notes = useQuery(notesQuery);
-  const { selectedNoteId, sidebarCollapsed } = useNoteStore();
+  const { selectedNoteId, sidebarCollapsed, setSidebarOpen } = useNoteStore();
+
+  // Close sidebar on mobile when clicking on editor panel
+  const handlePanelClick = useCallback(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [setSidebarOpen]);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -123,7 +130,10 @@ export function EditorPanel() {
 
   if (!selectedNote) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-background">
+      <main
+        className="flex flex-1 items-center justify-center bg-background"
+        onClick={handlePanelClick}
+      >
         <div className="text-center">
           <Edit3 className="mx-auto h-12 w-12 text-muted-foreground/50" />
           <p className="mt-4 text-lg text-muted-foreground">
@@ -139,7 +149,10 @@ export function EditorPanel() {
 
   return (
     <TooltipProvider>
-      <main className="flex flex-1 flex-col overflow-hidden bg-background">
+      <main
+        className="flex flex-1 flex-col overflow-hidden bg-background"
+        onClick={handlePanelClick}
+      >
         {/* Editor header */}
         <div
           className={cn(

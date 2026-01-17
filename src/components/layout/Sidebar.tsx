@@ -80,8 +80,9 @@ export function Sidebar() {
 
   // Touch drag state
   const [isTouchDragging, setIsTouchDragging] = useState(false);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartNoteRef = useRef<NoteId | null>(null);
+  const hasDraggedRef = useRef(false);
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
   const folderElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -101,14 +102,6 @@ export function Sidebar() {
     }
   }, []);
 
-  // Cleanup long press timer on unmount
-  useEffect(() => {
-    return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-    };
-  }, []);
 
   // Auto-expand parent folders when a note is selected
   useEffect(() => {
@@ -161,11 +154,7 @@ export function Sidebar() {
   const cancelEdit = useCallback((type: "note" | "folder") => {
     setEditingId(null);
     setEditingName("");
-    // Close sidebar on mobile if canceling note edit
-    if (type === "note" && window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
-  }, [setSidebarOpen]);
+  }, []);
 
   const saveEdit = useCallback((id: string, type: "note" | "folder") => {
     const trimmedName = editingName.trim();
@@ -184,22 +173,12 @@ export function Sidebar() {
       update("folder", { id: id as FolderId, name: parsedName.value });
     } else {
       update("note", { id: id as NoteId, title: parsedName.value });
-      // Close sidebar on mobile after finishing editing a note
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
-      }
     }
 
     setEditingId(null);
     setEditingName("");
-  }, [editingName, update, setSidebarOpen, cancelEdit]);
+  }, [editingName, update, cancelEdit]);
 
-  // Close sidebar on mobile after selecting a note
-  const closeSidebarOnMobile = useCallback(() => {
-    if (window.innerWidth < 768) {
-      setSidebarOpen(false);
-    }
-  }, [setSidebarOpen]);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => {
@@ -281,10 +260,6 @@ export function Sidebar() {
       });
       if (result.ok) {
         setSelectedNoteId(result.value.id);
-        // Close sidebar on mobile after creating note
-        if (window.innerWidth < 768) {
-          setSidebarOpen(false);
-        }
       }
     } else {
       insert("folder", {
@@ -294,7 +269,7 @@ export function Sidebar() {
     }
 
     setCreatingItem(null);
-  }, [creatingItem, selectedFolderId, insert, setSelectedNoteId, setSidebarOpen]);
+  }, [creatingItem, selectedFolderId, insert, setSelectedNoteId]);
 
   const cancelCreatingItem = useCallback(() => {
     setCreatingItem(null);
@@ -392,40 +367,32 @@ export function Sidebar() {
     setDropTargetFolderId(null);
   }, [draggedNoteId, notes, update]);
 
-  // Touch drag handlers for mobile
-  const clearLongPressTimer = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
-
+  // Touch drag handlers for mobile - drag starts immediately on touch
   const handleTouchStart = useCallback((e: React.TouchEvent, noteId: NoteId) => {
     const touch = e.touches[0];
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-
-    // Start long press timer (500ms)
-    longPressTimerRef.current = setTimeout(() => {
-      setDraggedNoteId(noteId);
-      setIsTouchDragging(true);
-      // Vibrate to indicate drag started (if supported)
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, 500);
+    touchStartNoteRef.current = noteId;
+    hasDraggedRef.current = false;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     const startPos = touchStartPosRef.current;
+    const noteId = touchStartNoteRef.current;
 
-    // If moved too much before long press triggered, cancel
-    if (startPos && !isTouchDragging) {
-      const dx = Math.abs(touch.clientX - startPos.x);
-      const dy = Math.abs(touch.clientY - startPos.y);
-      if (dx > 10 || dy > 10) {
-        clearLongPressTimer();
-        return;
+    if (!startPos || !noteId) return;
+
+    const dx = Math.abs(touch.clientX - startPos.x);
+    const dy = Math.abs(touch.clientY - startPos.y);
+
+    // Start dragging if moved more than 10px
+    if (!isTouchDragging && (dx > 10 || dy > 10)) {
+      setDraggedNoteId(noteId);
+      setIsTouchDragging(true);
+      hasDraggedRef.current = true;
+      // Vibrate to indicate drag started (if supported)
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
       }
     }
 
@@ -458,11 +425,10 @@ export function Sidebar() {
         }
       }
     }
-  }, [isTouchDragging, draggedNoteId, clearLongPressTimer]);
+  }, [isTouchDragging, draggedNoteId]);
 
   const handleTouchEnd = useCallback(() => {
-    clearLongPressTimer();
-
+    // If we dragged, handle the drop
     if (isTouchDragging && draggedNoteId && dropTargetFolderId) {
       const note = notes.find((n) => n.id === draggedNoteId);
       if (note) {
@@ -478,19 +444,32 @@ export function Sidebar() {
       }
     }
 
+    // If we didn't drag, this was a tap - select the note
+    const noteId = touchStartNoteRef.current;
+    if (!hasDraggedRef.current && noteId) {
+      const note = notes.find((n) => n.id === noteId);
+      if (note) {
+        setSelectedNoteId(noteId);
+        setSelectedFolderId(note.folderId);
+      }
+    }
+
     setDraggedNoteId(null);
     setDropTargetFolderId(null);
     setIsTouchDragging(false);
     touchStartPosRef.current = null;
-  }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, clearLongPressTimer]);
+    touchStartNoteRef.current = null;
+    hasDraggedRef.current = false;
+  }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, setSelectedNoteId, setSelectedFolderId]);
 
   const handleTouchCancel = useCallback(() => {
-    clearLongPressTimer();
     setDraggedNoteId(null);
     setDropTargetFolderId(null);
     setIsTouchDragging(false);
     touchStartPosRef.current = null;
-  }, [clearLongPressTimer]);
+    touchStartNoteRef.current = null;
+    hasDraggedRef.current = false;
+  }, []);
 
   // Get root folders (no parent)
   const rootFolders = folders.filter((f) => f.parentId === null);
@@ -655,7 +634,6 @@ export function Sidebar() {
     const handleSelect = () => {
       setSelectedNoteId(note.id);
       setSelectedFolderId(note.folderId);
-      closeSidebarOnMobile();
     };
 
     const isDragging = draggedNoteId === note.id;
@@ -676,13 +654,8 @@ export function Sidebar() {
         onTouchStart={(e) => handleTouchStart(e, note.id)}
         onTouchMove={handleTouchMove}
         onTouchEnd={(e) => {
-          if (isTouchDragging) {
-            handleTouchEnd();
-          } else {
-            clearLongPressTimer();
-            e.preventDefault();
-            handleSelect();
-          }
+          e.preventDefault();
+          handleTouchEnd();
         }}
         onTouchCancel={handleTouchCancel}
         onClick={handleSelect}
@@ -910,7 +883,7 @@ export function Sidebar() {
       {/* Touch drag indicator */}
       {isTouchDragging && draggedNoteId && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2">
-          <span>Drag to a folder or release to move</span>
+          <span>Drop on folder to move</span>
         </div>
       )}
 
