@@ -146,7 +146,7 @@ export function CalculatorEditor({
   const hasValues = lineResults.some((r) => r !== null);
 
   return (
-    <div ref={containerRef} className="relative flex h-full flex-col">
+    <div ref={containerRef} className="relative flex h-full flex-col pb-11">
       {/* Main editor area with results */}
       <div className="relative flex-1 overflow-hidden">
         <div className="flex h-full">
