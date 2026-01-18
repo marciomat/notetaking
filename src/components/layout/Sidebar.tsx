@@ -83,6 +83,7 @@ export function Sidebar() {
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const touchStartNoteRef = useRef<NoteId | null>(null);
   const hasDraggedRef = useRef(false);
+  const touchHandledRef = useRef(false); // Prevent click after touch
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
   const folderElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -451,6 +452,13 @@ export function Sidebar() {
   }, [isTouchDragging, draggedNoteId]);
 
   const handleTouchEnd = useCallback(() => {
+    // Mark that touch handled this interaction (prevents click from firing)
+    touchHandledRef.current = true;
+    // Reset after a short delay to allow future clicks
+    setTimeout(() => {
+      touchHandledRef.current = false;
+    }, 100);
+
     // If we dragged, handle the drop
     if (isTouchDragging && draggedNoteId && dropTargetFolderId) {
       const note = notes.find((n) => n.id === draggedNoteId);
@@ -515,6 +523,8 @@ export function Sidebar() {
     const hasChildren = subfolders.length > 0 || folderNotes.length > 0;
 
     const handleSelect = () => {
+      // Skip if touch already handled this interaction
+      if (touchHandledRef.current) return;
       setSelectedFolderId(folder.id);
       setSelectedNoteId(null);
       if (hasChildren) {
@@ -547,7 +557,16 @@ export function Sidebar() {
           onTouchEnd={(e) => {
             if (!isTouchDragging) {
               e.preventDefault();
-              handleSelect();
+              // Mark that touch handled this interaction
+              touchHandledRef.current = true;
+              setTimeout(() => {
+                touchHandledRef.current = false;
+              }, 100);
+              setSelectedFolderId(folder.id);
+              setSelectedNoteId(null);
+              if (hasChildren) {
+                toggleFolder(folder.id);
+              }
             }
           }}
           onClick={handleSelect}
@@ -656,6 +675,8 @@ export function Sidebar() {
 
   const renderNote = (note: (typeof notes)[number], depth = 0) => {
     const handleSelect = () => {
+      // Skip if touch already handled this interaction
+      if (touchHandledRef.current) return;
       setSelectedNoteId(note.id);
       setSelectedFolderId(note.folderId);
     };
