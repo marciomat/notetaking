@@ -18,6 +18,8 @@ export const Schema = {
     name: Evolu.NonEmptyString100,
     // Self-referential for nested folders
     parentId: Evolu.nullOr(FolderId),
+    // Permanently deleted (won't show in trash)
+    isPermanentlyDeleted: Evolu.nullOr(Evolu.SqliteBoolean),
   },
   note: {
     id: NoteId,
@@ -34,6 +36,8 @@ export const Schema = {
     noteType: Evolu.nullOr(Evolu.NonEmptyString100),
     // Tags as JSON array string, e.g. '["work","important"]'
     tags: Evolu.nullOr(Evolu.String),
+    // Permanently deleted (won't show in trash)
+    isPermanentlyDeleted: Evolu.nullOr(Evolu.SqliteBoolean),
   },
   settings: {
     id: SettingsId,
