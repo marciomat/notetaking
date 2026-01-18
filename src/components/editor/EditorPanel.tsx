@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Edit3, Eye, Pin, PinOff, Calculator } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -19,6 +19,18 @@ import { useEvolu, notesQuery } from "@/lib/evolu";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import { useQuery } from "@evolu/react";
 import { CalculatorEditor } from "./CalculatorEditor";
+import { TagInput } from "./TagInput";
+
+// Helper to parse tags from JSON string
+function parseTags(tagsJson: string | null): string[] {
+  if (!tagsJson) return [];
+  try {
+    const parsed = JSON.parse(tagsJson);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 export function EditorPanel() {
   const { update } = useEvolu();
@@ -37,6 +49,21 @@ export function EditorPanel() {
 
   // Find the selected note
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
+
+  // Collect all unique tags from all notes for autocomplete
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    notes.forEach((note) => {
+      parseTags(note.tags).forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [notes]);
+
+  // Get current note's tags
+  const currentTags = useMemo(
+    () => parseTags(selectedNote?.tags ?? null),
+    [selectedNote?.tags]
+  );
 
   // Get current note's mode from database (default to "edit" for new notes)
   const currentMode = selectedNote?.viewMode ?? "edit";
@@ -83,6 +110,16 @@ export function EditorPanel() {
       isPinned: isPinned ? null : Evolu.sqliteTrue,
     });
   };
+
+  // Handle tags change
+  const handleTagsChange = useCallback((newTags: string[]) => {
+    if (!selectedNoteId) return;
+    const tagsJson = newTags.length > 0 ? JSON.stringify(newTags) : null;
+    update("note", {
+      id: selectedNoteId,
+      tags: tagsJson,
+    });
+  }, [selectedNoteId, update]);
 
   // Debounced save function
   const saveNote = useCallback(() => {
@@ -156,21 +193,22 @@ export function EditorPanel() {
         {/* Editor header */}
         <div
           className={cn(
-            "flex h-12 shrink-0 items-center justify-between border-b border-border px-4",
+            "shrink-0 border-b border-border px-4 py-2",
             sidebarCollapsed && "md:pl-14"
           )}
         >
-          <div className="flex items-center gap-2 flex-1">
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={saveNote}
-              className="h-8 max-w-md border-none bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
-              placeholder="Note title..."
-            />
-          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1">
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={saveNote}
+                className="h-8 max-w-md border-none bg-transparent px-0 text-lg font-semibold shadow-none focus-visible:ring-0"
+                placeholder="Note title..."
+              />
+            </div>
 
-          <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1">
             {/* Calculator indicator for calculator notes */}
             {isCalculatorNote && (
               <Tooltip>
@@ -226,6 +264,16 @@ export function EditorPanel() {
                 </TooltipContent>
               </Tooltip>
             )}
+            </div>
+          </div>
+
+          {/* Tags section */}
+          <div className="mt-1.5">
+            <TagInput
+              tags={currentTags}
+              onChange={handleTagsChange}
+              allTags={allTags}
+            />
           </div>
         </div>
 

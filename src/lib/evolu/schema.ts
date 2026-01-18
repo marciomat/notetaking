@@ -32,6 +32,8 @@ export const Schema = {
     isPinned: Evolu.nullOr(Evolu.SqliteBoolean),
     // Note type: "note" (default) or "calculator"
     noteType: Evolu.nullOr(Evolu.NonEmptyString100),
+    // Tags as JSON array string, e.g. '["work","important"]'
+    tags: Evolu.nullOr(Evolu.String),
   },
   settings: {
     id: SettingsId,

@@ -14,7 +14,10 @@ import {
   Pencil,
   Pin,
   Calculator,
+  Search,
+  Tag,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
 import { Button } from "@/components/ui/button";
@@ -53,6 +56,10 @@ export function Sidebar() {
     setSelectedFolderId,
     setSidebarOpen,
     toggleSidebarCollapsed,
+    tagFilter,
+    addTagToFilter,
+    removeTagFromFilter,
+    clearTagFilter,
   } = useNoteStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
@@ -103,6 +110,42 @@ export function Sidebar() {
       node.select();
     }
   }, []);
+
+  // Tag search state
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  const tagSearchRef = useRef<HTMLInputElement>(null);
+
+  // Helper to parse tags from JSON string
+  const parseTags = useCallback((tagsJson: string | null): string[] => {
+    if (!tagsJson) return [];
+    try {
+      const parsed = JSON.parse(tagsJson);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Collect all unique tags from all notes
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    notes.forEach((note) => {
+      parseTags(note.tags).forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [notes, parseTags]);
+
+  // Filter tag suggestions based on search query
+  const tagSuggestions = useMemo(() => {
+    if (!tagSearchQuery.trim()) return allTags.filter((tag) => !tagFilter.includes(tag));
+    return allTags.filter(
+      (tag) =>
+        tag.toLowerCase().includes(tagSearchQuery.toLowerCase()) &&
+        !tagFilter.includes(tag)
+    );
+  }, [tagSearchQuery, allTags, tagFilter]);
 
 
   // Prevent scrolling on entire page when touch dragging
@@ -511,19 +554,50 @@ export function Sidebar() {
     hasScrolledRef.current = false;
   }, []);
 
-  // Get root folders (no parent)
-  const rootFolders = folders.filter((f) => f.parentId === null);
+  // Helper to check if a note matches the tag filter
+  const noteMatchesTagFilter = useCallback((note: typeof notes[number]): boolean => {
+    if (tagFilter.length === 0) return true;
+    const noteTags = parseTags(note.tags);
+    // Note must have ALL selected tags (AND logic)
+    return tagFilter.every((filterTag) => noteTags.includes(filterTag));
+  }, [tagFilter, parseTags]);
 
-  // Get notes without folder
-  const rootNotes = notes.filter((n) => n.folderId === null);
+  // Helper to check if a folder contains any matching notes (recursively)
+  const folderHasMatchingNotes = useCallback((folderId: FolderId): boolean => {
+    // Check direct notes in this folder
+    const directNotes = notes.filter((n) => n.folderId === folderId);
+    if (directNotes.some(noteMatchesTagFilter)) return true;
 
-  // Get subfolders for a parent
-  const getSubfolders = (parentId: FolderId) =>
-    folders.filter((f) => f.parentId === parentId);
+    // Check subfolders recursively
+    const subfolders = folders.filter((f) => f.parentId === folderId);
+    return subfolders.some((subfolder) => folderHasMatchingNotes(subfolder.id));
+  }, [notes, folders, noteMatchesTagFilter]);
 
-  // Get notes in a folder
-  const getNotesInFolder = (folderId: FolderId) =>
-    notes.filter((n) => n.folderId === folderId);
+  // Get root folders (no parent) - filter out empty folders when tag filter is active
+  const rootFolders = useMemo(() => {
+    const allRootFolders = folders.filter((f) => f.parentId === null);
+    if (tagFilter.length === 0) return allRootFolders;
+    return allRootFolders.filter((f) => folderHasMatchingNotes(f.id));
+  }, [folders, tagFilter, folderHasMatchingNotes]);
+
+  // Get notes without folder (filtered by tags)
+  const rootNotes = useMemo(() =>
+    notes.filter((n) => n.folderId === null && noteMatchesTagFilter(n)),
+    [notes, noteMatchesTagFilter]
+  );
+
+  // Get subfolders for a parent - filter out empty folders when tag filter is active
+  const getSubfolders = useCallback((parentId: FolderId) => {
+    const allSubfolders = folders.filter((f) => f.parentId === parentId);
+    if (tagFilter.length === 0) return allSubfolders;
+    return allSubfolders.filter((f) => folderHasMatchingNotes(f.id));
+  }, [folders, tagFilter, folderHasMatchingNotes]);
+
+  // Get notes in a folder (filtered by tags)
+  const getNotesInFolder = useCallback((folderId: FolderId) =>
+    notes.filter((n) => n.folderId === folderId && noteMatchesTagFilter(n)),
+    [notes, noteMatchesTagFilter]
+  );
 
   const renderFolder = (folder: (typeof folders)[number], depth = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
@@ -877,6 +951,100 @@ export function Sidebar() {
               <TooltipContent>New Calculator</TooltipContent>
             </Tooltip>
           </div>
+        </div>
+
+        {/* Tag filter search */}
+        <div className="px-3 py-2">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              ref={tagSearchRef}
+              value={tagSearchQuery}
+              onChange={(e) => {
+                setTagSearchQuery(e.target.value);
+                setShowTagSuggestions(true);
+                setSelectedSuggestionIndex(0);
+              }}
+              onFocus={() => setShowTagSuggestions(true)}
+              onBlur={() => {
+                // Delay to allow click on suggestion
+                setTimeout(() => setShowTagSuggestions(false), 200);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && tagSuggestions.length > 0) {
+                  e.preventDefault();
+                  addTagToFilter(tagSuggestions[selectedSuggestionIndex]);
+                  setTagSearchQuery("");
+                  setShowTagSuggestions(false);
+                } else if (e.key === "Escape") {
+                  setShowTagSuggestions(false);
+                  setTagSearchQuery("");
+                } else if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSelectedSuggestionIndex((prev) =>
+                    prev < tagSuggestions.length - 1 ? prev + 1 : prev
+                  );
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                }
+              }}
+              placeholder="Filter by tags..."
+              className="h-8 pl-7 text-xs"
+            />
+
+            {/* Tag suggestions dropdown */}
+            {showTagSuggestions && tagSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-40 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+                {tagSuggestions.slice(0, 10).map((tag, index) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={cn(
+                      "w-full flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent",
+                      index === selectedSuggestionIndex && "bg-accent"
+                    )}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      addTagToFilter(tag);
+                      setTagSearchQuery("");
+                      setShowTagSuggestions(false);
+                    }}
+                  >
+                    <Tag className="h-3 w-3 text-muted-foreground" />
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Active tag filters */}
+          {tagFilter.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {tagFilter.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="gap-1 pr-1 text-xs cursor-pointer"
+                  onClick={() => removeTagFromFilter(tag)}
+                >
+                  {tag}
+                  <X className="h-3 w-3" />
+                </Badge>
+              ))}
+              {tagFilter.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1.5 text-xs text-muted-foreground"
+                  onClick={clearTagFilter}
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         <Separator />
