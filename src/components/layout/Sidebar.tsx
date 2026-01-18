@@ -664,7 +664,7 @@ export function Sidebar() {
       <div
         key={note.id}
         className={cn(
-          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
+          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent touch-none",
           selectedNoteId === note.id && "bg-accent",
           isDragging && "opacity-50 scale-105 z-10 relative",
           isTouchDragging && isDragging && "shadow-lg bg-accent"
