@@ -407,9 +407,9 @@ export function Sidebar() {
     const dx = Math.abs(touch.clientX - startPos.x);
     const dy = Math.abs(touch.clientY - startPos.y);
 
-    // Start dragging if moved more than 10px
-    if (!isTouchDragging && (dx > 10 || dy > 10)) {
-      e.preventDefault(); // Prevent scrolling immediately when drag starts
+    // Start dragging only on HORIZONTAL movement (>10px)
+    // Vertical movement is for scrolling the sidebar
+    if (!isTouchDragging && dx > 10 && dx > dy) {
       setDraggedNoteId(noteId);
       setIsTouchDragging(true);
       hasDraggedRef.current = true;
@@ -537,7 +537,9 @@ export function Sidebar() {
       <div key={folder.id} ref={registerFolderRef}>
         <div
           className={cn(
-            "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
+            "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
+            // Allow vertical scrolling
+            isTouchDragging ? "touch-none" : "[touch-action:pan-y]",
             selectedFolderId === folder.id && "bg-accent",
             isDropTarget && draggedNoteId && "bg-primary/20 ring-2 ring-primary ring-inset"
           )}
@@ -664,7 +666,9 @@ export function Sidebar() {
       <div
         key={note.id}
         className={cn(
-          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent touch-none",
+          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
+          // Allow vertical scrolling (pan-y), but we handle horizontal drag ourselves
+          isTouchDragging ? "touch-none" : "[touch-action:pan-y]",
           selectedNoteId === note.id && "bg-accent",
           isDragging && "opacity-50 scale-105 z-10 relative",
           isTouchDragging && isDragging && "shadow-lg bg-accent"
