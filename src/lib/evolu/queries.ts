@@ -80,27 +80,3 @@ export const settingsQuery = evolu.createQuery((db) =>
     .where("isDeleted", "is not", Evolu.sqliteTrue)
     .limit(1),
 );
-
-// Query for deleted notes (Trash) - excludes permanently deleted
-export const deletedNotesQuery = evolu.createQuery((db) =>
-  db
-    .selectFrom("note")
-    .select(["id", "title", "content", "folderId", "viewMode", "isPinned", "noteType", "tags", "createdAt", "updatedAt"])
-    .where("isDeleted", "is", Evolu.sqliteTrue)
-    .where("isPermanentlyDeleted", "is not", Evolu.sqliteTrue)
-    .where("title", "is not", null)
-    .$narrowType<{ title: Evolu.kysely.NotNull }>()
-    .orderBy("updatedAt", "desc"),
-);
-
-// Query for deleted folders (Trash) - excludes permanently deleted
-export const deletedFoldersQuery = evolu.createQuery((db) =>
-  db
-    .selectFrom("folder")
-    .select(["id", "name", "parentId", "createdAt", "updatedAt"])
-    .where("isDeleted", "is", Evolu.sqliteTrue)
-    .where("isPermanentlyDeleted", "is not", Evolu.sqliteTrue)
-    .where("name", "is not", null)
-    .$narrowType<{ name: Evolu.kysely.NotNull }>()
-    .orderBy("updatedAt", "desc"),
-);

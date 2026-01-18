@@ -68,6 +68,20 @@ export function QRCodeScanner({
     setError(null);
     setIsScanning(true);
 
+    // Check for secure context (HTTPS) - required for camera access on iOS
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError("Camera access requires HTTPS. Please use a secure connection.");
+      setIsScanning(false);
+      return;
+    }
+
+    // Check if camera API is supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("Camera is not supported on this device or browser.");
+      setIsScanning(false);
+      return;
+    }
+
     try {
       // Dynamic import to avoid SSR issues
       const { Html5Qrcode } = await import("html5-qrcode");
@@ -89,6 +103,7 @@ export function QRCodeScanner({
           fps: 10,
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1,
+          disableFlip: true, // Improves iOS compatibility
         },
         (decodedText) => {
           // Success callback
@@ -110,10 +125,33 @@ export function QRCodeScanner({
 
       setIsScanning(false);
       if (err instanceof Error) {
-        if (err.message.includes("Permission") || err.message.includes("NotAllowedError")) {
-          setError("Camera permission denied. Please allow camera access and try again.");
-        } else if (err.message.includes("NotFoundError") || err.message.includes("NotFound")) {
+        const errorMsg = err.message.toLowerCase();
+        if (
+          errorMsg.includes("permission") ||
+          errorMsg.includes("notallowederror") ||
+          errorMsg.includes("not allowed") ||
+          errorMsg.includes("denied")
+        ) {
+          // iOS PWA may need camera permission granted in Settings > Safari
+          setError(
+            "Camera permission denied. Please allow camera access in your device settings and try again."
+          );
+        } else if (
+          errorMsg.includes("notfounderror") ||
+          errorMsg.includes("not found") ||
+          errorMsg.includes("no camera")
+        ) {
           setError("No camera found on this device.");
+        } else if (
+          errorMsg.includes("notreadableerror") ||
+          errorMsg.includes("not readable") ||
+          errorMsg.includes("could not start")
+        ) {
+          // Camera may be in use by another app
+          setError("Camera is not available. It may be in use by another app.");
+        } else if (errorMsg.includes("overconstrained")) {
+          // Requested camera configuration not available
+          setError("Camera configuration not supported. Please try again.");
         } else {
           setError("Failed to start camera. Please try again.");
         }

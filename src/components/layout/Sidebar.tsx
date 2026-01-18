@@ -16,7 +16,6 @@ import {
   Calculator,
   Search,
   Tag,
-  RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@evolu/react";
@@ -42,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useEvolu, foldersQuery, notesQuery, deletedNotesQuery, deletedFoldersQuery } from "@/lib/evolu";
+import { useEvolu, foldersQuery, notesQuery } from "@/lib/evolu";
 import type { FolderId, NoteId } from "@/lib/evolu";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 
@@ -50,8 +49,6 @@ export function Sidebar() {
   const { insert, update } = useEvolu();
   const folders = useQuery(foldersQuery);
   const notes = useQuery(notesQuery);
-  const deletedNotes = useQuery(deletedNotesQuery);
-  const deletedFolders = useQuery(deletedFoldersQuery);
   const {
     selectedNoteId,
     selectedFolderId,
@@ -70,20 +67,6 @@ export function Sidebar() {
   );
 
   const [deleteDialog, setDeleteDialog] = useState<{
-    open: boolean;
-    type: "note" | "folder" | null;
-    id: NoteId | FolderId | null;
-    name: string;
-  }>({
-    open: false,
-    type: null,
-    id: null,
-    name: "",
-  });
-
-  // Trash section state
-  const [trashExpanded, setTrashExpanded] = useState(false);
-  const [permanentDeleteDialog, setPermanentDeleteDialog] = useState<{
     open: boolean;
     type: "note" | "folder" | null;
     id: NoteId | FolderId | null;
@@ -396,60 +379,6 @@ export function Sidebar() {
 
     setDeleteDialog({ open: false, type: null, id: null, name: "" });
   };
-
-  // Trash functions
-  const handleRestoreNote = (note: (typeof deletedNotes)[number], e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    // Restore note by setting isDeleted to false
-    update("note", { id: note.id, isDeleted: Evolu.sqliteFalse });
-  };
-
-  const handleRestoreFolder = (folder: (typeof deletedFolders)[number], e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    // Restore folder by setting isDeleted to false
-    update("folder", { id: folder.id, isDeleted: Evolu.sqliteFalse });
-  };
-
-  const handlePermanentDeleteNote = (note: (typeof deletedNotes)[number], e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setPermanentDeleteDialog({
-      open: true,
-      type: "note",
-      id: note.id,
-      name: note.title,
-    });
-  };
-
-  const handlePermanentDeleteFolder = (folder: (typeof deletedFolders)[number], e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setPermanentDeleteDialog({
-      open: true,
-      type: "folder",
-      id: folder.id,
-      name: folder.name,
-    });
-  };
-
-  const confirmPermanentDelete = () => {
-    if (!permanentDeleteDialog.id || !permanentDeleteDialog.type) return;
-
-    // Mark as permanently deleted - this hides from trash queries
-    if (permanentDeleteDialog.type === "note") {
-      update("note", {
-        id: permanentDeleteDialog.id as NoteId,
-        isPermanentlyDeleted: Evolu.sqliteTrue,
-      });
-    } else if (permanentDeleteDialog.type === "folder") {
-      update("folder", {
-        id: permanentDeleteDialog.id as FolderId,
-        isPermanentlyDeleted: Evolu.sqliteTrue,
-      });
-    }
-
-    setPermanentDeleteDialog({ open: false, type: null, id: null, name: "" });
-  };
-
-  const trashItemCount = deletedNotes.length + deletedFolders.length;
 
   // Drag and drop handlers
   const handleDragStart = useCallback((e: React.DragEvent, noteId: NoteId) => {
@@ -1195,126 +1124,6 @@ export function Sidebar() {
               </div>
             )}
 
-            {/* Trash section - separator and collapsible */}
-            <div className="mt-4 pt-4 border-t border-border">
-              <div
-                className="flex items-center justify-between px-1 py-1.5 cursor-pointer hover:bg-accent/50 rounded-md"
-                onClick={() => setTrashExpanded(!trashExpanded)}
-              >
-                <div className="flex items-center gap-2">
-                  {trashExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Trash</span>
-                </div>
-                {trashItemCount > 0 && (
-                  <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                    {trashItemCount}
-                  </Badge>
-                )}
-              </div>
-
-              {trashExpanded && (
-                <div className="mt-1">
-                  {trashItemCount === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-4">
-                      Trash is empty
-                    </p>
-                  ) : (
-                    <div className="space-y-1">
-                      {/* Deleted folders */}
-                      {deletedFolders.map((folder) => (
-                        <div
-                          key={folder.id}
-                          className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                        >
-                          <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 truncate text-muted-foreground">
-                            {folder.name}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={(e) => handleRestoreFolder(folder, e)}
-                                >
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Restore</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
-                                  onClick={(e) => handlePermanentDeleteFolder(folder, e)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete permanently</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Deleted notes */}
-                      {deletedNotes.map((note) => (
-                        <div
-                          key={note.id}
-                          className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                        >
-                          {note.noteType === "calculator" ? (
-                            <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          ) : (
-                            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          )}
-                          <span className="flex-1 truncate text-muted-foreground">
-                            {note.title}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={(e) => handleRestoreNote(note, e)}
-                                >
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Restore</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 text-destructive hover:text-destructive"
-                                  onClick={(e) => handlePermanentDeleteNote(note, e)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete permanently</TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </ScrollArea>
       </aside>
@@ -1326,7 +1135,7 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Delete confirmation dialog (moves to trash) */}
+      {/* Delete confirmation dialog */}
       <AlertDialog
         open={deleteDialog.open}
         onOpenChange={(open) => {
@@ -1337,46 +1146,20 @@ export function Sidebar() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {deleteDialog.type}?</AlertDialogTitle>
             <AlertDialogDescription>
-              &quot;{deleteDialog.name}&quot; will be moved to Trash.
-              {deleteDialog.type === "folder" && " All notes inside this folder will also be moved."}
-              {" "}You can restore it later from the Trash.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>
-              Move to Trash
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Permanent delete confirmation dialog */}
-      <AlertDialog
-        open={permanentDeleteDialog.open}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPermanentDeleteDialog({ open: false, type: null, id: null, name: "" });
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete permanently?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete &quot;{permanentDeleteDialog.name}&quot;?
-              This action cannot be undone and the data will be removed from your device.
+              Are you sure you want to delete &quot;{deleteDialog.name}&quot;?
+              {deleteDialog.type === "folder" && " All notes inside this folder will also be deleted."}
+              {" "}This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmPermanentDelete}
+              onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete Permanently
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
