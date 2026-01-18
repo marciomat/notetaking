@@ -102,6 +102,40 @@ export function Sidebar() {
     name: string;
   } | null>(null);
 
+  // Error state for duplicate names (for move operations - shown as dialog)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
+  // Inline error for create/rename operations (shown below input)
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  // Helper to check if a note name already exists in a folder (case-insensitive)
+  const noteNameExistsInFolder = useCallback(
+    (name: string, folderId: FolderId | null, excludeNoteId?: NoteId): boolean => {
+      const normalizedName = name.toLowerCase().trim();
+      return notes.some(
+        (note) =>
+          note.id !== excludeNoteId &&
+          note.folderId === folderId &&
+          note.title.toLowerCase() === normalizedName
+      );
+    },
+    [notes]
+  );
+
+  // Helper to check if a folder name already exists in a parent folder (case-insensitive)
+  const folderNameExistsInParent = useCallback(
+    (name: string, parentId: FolderId | null, excludeFolderId?: FolderId): boolean => {
+      const normalizedName = name.toLowerCase().trim();
+      return folders.some(
+        (folder) =>
+          folder.id !== excludeFolderId &&
+          folder.parentId === parentId &&
+          folder.name.toLowerCase() === normalizedName
+      );
+    },
+    [folders]
+  );
+
   // Callback ref to focus and select text when input is mounted
   const editInputRef = useCallback((node: HTMLInputElement | null) => {
     if (node) {
@@ -221,30 +255,44 @@ export function Sidebar() {
   const cancelEdit = useCallback((type: "note" | "folder") => {
     setEditingId(null);
     setEditingName("");
+    setInlineError(null);
   }, []);
 
-  const saveEdit = useCallback((id: string, type: "note" | "folder") => {
+  const saveEdit = useCallback((id: string, type: "note" | "folder"): boolean => {
     const trimmedName = editingName.trim();
     if (!trimmedName) {
       cancelEdit(type);
-      return;
+      return true;
     }
 
     const parsedName = Evolu.NonEmptyString100.from(trimmedName);
     if (!parsedName.ok) {
-      cancelEdit(type);
-      return;
+      setInlineError("Name is too long");
+      return false;
     }
 
+    // Check for duplicate names
     if (type === "folder") {
+      const folder = folders.find((f) => f.id === id);
+      if (folder && folderNameExistsInParent(trimmedName, folder.parentId, id as FolderId)) {
+        setInlineError(`"${trimmedName}" already exists here`);
+        return false;
+      }
       update("folder", { id: id as FolderId, name: parsedName.value });
     } else {
+      const note = notes.find((n) => n.id === id);
+      if (note && noteNameExistsInFolder(trimmedName, note.folderId, id as NoteId)) {
+        setInlineError(`"${trimmedName}" already exists in this folder`);
+        return false;
+      }
       update("note", { id: id as NoteId, title: parsedName.value });
     }
 
+    setInlineError(null);
     setEditingId(null);
     setEditingName("");
-  }, [editingName, update, cancelEdit]);
+    return true;
+  }, [editingName, update, cancelEdit, folders, notes, folderNameExistsInParent, noteNameExistsInFolder]);
 
 
   const toggleFolder = (folderId: string) => {
@@ -303,19 +351,25 @@ export function Sidebar() {
     });
   };
 
-  const saveCreatingItem = useCallback(() => {
-    if (!creatingItem) return;
+  const saveCreatingItem = useCallback((): boolean => {
+    if (!creatingItem) return true;
 
     const trimmedName = creatingItem.name.trim();
     const nameToUse = trimmedName || creatingItem.defaultName;
     const parsedName = Evolu.NonEmptyString100.from(nameToUse);
 
     if (!parsedName.ok) {
-      setCreatingItem(null);
-      return;
+      setInlineError("Name is too long");
+      return false;
     }
 
+    // Check for duplicate names
     if (creatingItem.type === "note" || creatingItem.type === "calculator") {
+      if (noteNameExistsInFolder(nameToUse, selectedFolderId)) {
+        setInlineError(`"${nameToUse}" already exists in this folder`);
+        return false;
+      }
+
       const editMode = Evolu.NonEmptyString100.from("edit");
       const noteType = Evolu.NonEmptyString100.from(creatingItem.type);
       const result = insert("note", {
@@ -329,17 +383,25 @@ export function Sidebar() {
         setSelectedNoteId(result.value.id);
       }
     } else {
+      if (folderNameExistsInParent(nameToUse, selectedFolderId)) {
+        setInlineError(`"${nameToUse}" already exists here`);
+        return false;
+      }
+
       insert("folder", {
         name: parsedName.value,
         parentId: selectedFolderId,
       });
     }
 
+    setInlineError(null);
     setCreatingItem(null);
-  }, [creatingItem, selectedFolderId, insert, setSelectedNoteId]);
+    return true;
+  }, [creatingItem, selectedFolderId, insert, setSelectedNoteId, noteNameExistsInFolder, folderNameExistsInParent]);
 
   const cancelCreatingItem = useCallback(() => {
     setCreatingItem(null);
+    setInlineError(null);
   }, []);
 
   const handleDeleteNote = (note: (typeof notes)[number], e?: React.MouseEvent | React.TouchEvent) => {
@@ -422,6 +484,14 @@ export function Sidebar() {
 
     // Only update if actually changing folders
     if (note.folderId !== newFolderId) {
+      // Check for duplicate name in target folder
+      if (noteNameExistsInFolder(note.title, newFolderId, draggedNoteId)) {
+        setDuplicateError(`A note named "${note.title}" already exists in the destination folder`);
+        setDraggedNoteId(null);
+        setDropTargetFolderId(null);
+        return;
+      }
+
       update("note", { id: draggedNoteId, folderId: newFolderId });
 
       // Expand the target folder if dropping into one
@@ -432,7 +502,7 @@ export function Sidebar() {
 
     setDraggedNoteId(null);
     setDropTargetFolderId(null);
-  }, [draggedNoteId, notes, update]);
+  }, [draggedNoteId, notes, update, noteNameExistsInFolder]);
 
   // Touch drag handlers for mobile - drag starts immediately on touch
   const handleTouchStart = useCallback((e: React.TouchEvent, noteId: NoteId) => {
@@ -516,10 +586,15 @@ export function Sidebar() {
         const newFolderId = dropTargetFolderId === "root" ? null : dropTargetFolderId;
 
         if (note.folderId !== newFolderId) {
-          update("note", { id: draggedNoteId, folderId: newFolderId });
+          // Check for duplicate name in target folder
+          if (noteNameExistsInFolder(note.title, newFolderId, draggedNoteId)) {
+            setDuplicateError(`A note named "${note.title}" already exists in the destination folder`);
+          } else {
+            update("note", { id: draggedNoteId, folderId: newFolderId });
 
-          if (newFolderId) {
-            setExpandedFolders((prev) => new Set(prev).add(newFolderId));
+            if (newFolderId) {
+              setExpandedFolders((prev) => new Set(prev).add(newFolderId));
+            }
           }
         }
       }
@@ -542,7 +617,7 @@ export function Sidebar() {
     touchStartNoteRef.current = null;
     hasDraggedRef.current = false;
     hasScrolledRef.current = false;
-  }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, setSelectedNoteId, setSelectedFolderId]);
+  }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, setSelectedNoteId, setSelectedFolderId, noteNameExistsInFolder]);
 
   const handleTouchCancel = useCallback(() => {
     setDraggedNoteId(null);
@@ -688,7 +763,10 @@ export function Sidebar() {
             <Input
               ref={editInputRef}
               value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
+              onChange={(e) => {
+                setEditingName(e.target.value);
+                setInlineError(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   saveEdit(folder.id, "folder");
@@ -696,8 +774,14 @@ export function Sidebar() {
                   cancelEdit("folder");
                 }
               }}
-              onBlur={() => saveEdit(folder.id, "folder")}
-              className="h-6 flex-1 text-sm"
+              onBlur={(e) => {
+                const success = saveEdit(folder.id, "folder");
+                if (!success) {
+                  // Refocus on error
+                  e.target.focus();
+                }
+              }}
+              className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
@@ -729,40 +813,67 @@ export function Sidebar() {
           </Button>
         </div>
 
+        {/* Inline error for folder rename */}
+        {editingId === folder.id && inlineError && (
+          <p
+            className="text-xs text-destructive px-2 py-1"
+            style={{ paddingLeft: `${depth * 12 + 28}px` }}
+          >
+            {inlineError}
+          </p>
+        )}
+
         {isExpanded && (
           <>
             {/* Creating new item input - shown inside folder when this folder is selected */}
             {creatingItem && selectedFolderId === folder.id && (
-              <div
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
-                style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
-              >
-                {creatingItem.type === "folder" ? (
-                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : creatingItem.type === "calculator" ? (
-                  <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="space-y-1">
+                <div
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
+                  style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
+                >
+                  {creatingItem.type === "folder" ? (
+                    <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : creatingItem.type === "calculator" ? (
+                    <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <Input
+                    ref={editInputRef}
+                    value={creatingItem.name}
+                    onChange={(e) => {
+                      setCreatingItem((prev) =>
+                        prev ? { ...prev, name: e.target.value } : null
+                      );
+                      setInlineError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        saveCreatingItem();
+                      } else if (e.key === "Escape") {
+                        cancelCreatingItem();
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const success = saveCreatingItem();
+                      if (!success) {
+                        // Refocus on error
+                        e.target.focus();
+                      }
+                    }}
+                    className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                {inlineError && (
+                  <p
+                    className="text-xs text-destructive px-2"
+                    style={{ paddingLeft: `${(depth + 1) * 12 + 28}px` }}
+                  >
+                    {inlineError}
+                  </p>
                 )}
-                <Input
-                  ref={editInputRef}
-                  value={creatingItem.name}
-                  onChange={(e) =>
-                    setCreatingItem((prev) =>
-                      prev ? { ...prev, name: e.target.value } : null
-                    )
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      saveCreatingItem();
-                    } else if (e.key === "Escape") {
-                      cancelCreatingItem();
-                    }
-                  }}
-                  onBlur={saveCreatingItem}
-                  className="h-6 flex-1 text-sm"
-                  onClick={(e) => e.stopPropagation()}
-                />
               </div>
             )}
             {subfolders.map((subfolder) => renderFolder(subfolder, depth + 1))}
@@ -784,6 +895,7 @@ export function Sidebar() {
     const isDragging = draggedNoteId === note.id;
 
     return (
+      <>
       <div
         key={note.id}
         className={cn(
@@ -820,7 +932,10 @@ export function Sidebar() {
         <Input
           ref={editInputRef}
           value={editingName}
-          onChange={(e) => setEditingName(e.target.value)}
+          onChange={(e) => {
+            setEditingName(e.target.value);
+            setInlineError(null);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               saveEdit(note.id, "note");
@@ -828,8 +943,14 @@ export function Sidebar() {
               cancelEdit("note");
             }
           }}
-          onBlur={() => saveEdit(note.id, "note")}
-          className="h-6 flex-1 text-sm"
+          onBlur={(e) => {
+            const success = saveEdit(note.id, "note");
+            if (!success) {
+              // Refocus on error
+              e.target.focus();
+            }
+          }}
+          className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
@@ -860,6 +981,16 @@ export function Sidebar() {
         <Trash2 className="h-3 w-3 text-muted-foreground" />
       </Button>
     </div>
+    {/* Inline error for note rename */}
+    {editingId === note.id && inlineError && (
+      <p
+        className="text-xs text-destructive px-2 py-1"
+        style={{ paddingLeft: `${depth * 12 + 28}px` }}
+      >
+        {inlineError}
+      </p>
+    )}
+    </>
     );
   };
 
@@ -1072,36 +1203,50 @@ export function Sidebar() {
           >
             {/* Creating new item input - shown at root level when no folder is selected */}
             {creatingItem && !selectedFolderId && (
-              <div
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
-                style={{ paddingLeft: "28px" }}
-              >
-                {creatingItem.type === "folder" ? (
-                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : creatingItem.type === "calculator" ? (
-                  <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="space-y-1">
+                <div
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
+                  style={{ paddingLeft: "28px" }}
+                >
+                  {creatingItem.type === "folder" ? (
+                    <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : creatingItem.type === "calculator" ? (
+                    <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <Input
+                    ref={editInputRef}
+                    value={creatingItem.name}
+                    onChange={(e) => {
+                      setCreatingItem((prev) =>
+                        prev ? { ...prev, name: e.target.value } : null
+                      );
+                      setInlineError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        saveCreatingItem();
+                      } else if (e.key === "Escape") {
+                        cancelCreatingItem();
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const success = saveCreatingItem();
+                      if (!success) {
+                        // Refocus on error
+                        e.target.focus();
+                      }
+                    }}
+                    className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                {inlineError && (
+                  <p className="text-xs text-destructive px-2" style={{ paddingLeft: "28px" }}>
+                    {inlineError}
+                  </p>
                 )}
-                <Input
-                  ref={editInputRef}
-                  value={creatingItem.name}
-                  onChange={(e) =>
-                    setCreatingItem((prev) =>
-                      prev ? { ...prev, name: e.target.value } : null
-                    )
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      saveCreatingItem();
-                    } else if (e.key === "Escape") {
-                      cancelCreatingItem();
-                    }
-                  }}
-                  onBlur={saveCreatingItem}
-                  className="h-6 flex-1 text-sm"
-                  onClick={(e) => e.stopPropagation()}
-                />
               </div>
             )}
 
@@ -1160,6 +1305,30 @@ export function Sidebar() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate name error dialog (for move operations) */}
+      <AlertDialog
+        open={duplicateError !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDuplicateError(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot Move Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDuplicateError(null)}>
+              OK
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
