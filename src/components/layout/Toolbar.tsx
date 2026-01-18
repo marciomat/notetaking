@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
+import { Logo } from "@/components/ui/Logo";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import type { AppOwner } from "@evolu/common";
 
@@ -53,6 +54,7 @@ export function Toolbar({ owner }: ToolbarProps) {
             </Button>
           )}
 
+          <Logo size={22} className="text-primary" />
           <h1 className="text-lg font-semibold">Notetaking</h1>
         </div>
 
