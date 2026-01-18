@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Notetaking",
-  description: "A local-first note-taking app with cloud sync, calculator notepad, and tag organization",
+  title: "Numpad",
+  description: "A local-first note-taking app with calculator notepad, tags, and cloud sync",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Notetaking",
+    title: "Numpad",
   },
   formatDetection: {
     telephone: false,
@@ -59,7 +59,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Notetaking" />
+        <meta name="apple-mobile-web-app-title" content="Numpad" />
         {/* Splash screens for iOS */}
         <link
           rel="apple-touch-startup-image"

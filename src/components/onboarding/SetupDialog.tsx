@@ -19,8 +19,8 @@ interface SetupDialogProps {
   onComplete: () => void;
 }
 
-const SETUP_COMPLETE_KEY = "notetaking_setup_complete";
-const ONBOARDING_COMPLETE_KEY = "notetaking_onboarding_complete";
+const SETUP_COMPLETE_KEY = "numpad_setup_complete";
+const ONBOARDING_COMPLETE_KEY = "numpad_onboarding_complete";
 
 export function isSetupComplete(): boolean {
   if (typeof window === "undefined") return false;
@@ -97,7 +97,7 @@ export function SetupDialog({ open, onComplete }: SetupDialogProps) {
         {mode === "choice" ? (
           <>
             <DialogHeader>
-              <DialogTitle>Welcome to Notetaking</DialogTitle>
+              <DialogTitle>Welcome to Numpad</DialogTitle>
               <DialogDescription>
                 Choose how you&apos;d like to get started
               </DialogDescription>

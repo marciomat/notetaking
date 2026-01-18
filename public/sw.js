@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = "notetaking-v1";
+const CACHE_NAME = "numpad-v1";
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [

@@ -55,7 +55,7 @@ export function Toolbar({ owner }: ToolbarProps) {
           )}
 
           <Logo size={22} className="text-primary" />
-          <h1 className="text-lg font-semibold">Notetaking</h1>
+          <h1 className="text-lg font-semibold">Numpad</h1>
         </div>
 
         {/* Right side - Actions */}

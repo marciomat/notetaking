@@ -1,6 +1,6 @@
 {
-  "name": "Notetaking",
-  "short_name": "Notes",
+  "name": "Numpad",
+  "short_name": "Numpad",
   "description": "A local-first note-taking app with cloud sync, calculator notepad, and tag organization",
   "start_url": "/",
   "id": "/",

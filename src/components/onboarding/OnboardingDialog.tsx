@@ -7,7 +7,7 @@ interface OnboardingDialogProps {
   owner: AppOwner;
 }
 
-const ONBOARDING_COMPLETE_KEY = "notetaking_onboarding_complete";
+const ONBOARDING_COMPLETE_KEY = "numpad_onboarding_complete";
 
 export function OnboardingDialog({ owner }: OnboardingDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +54,7 @@ export function OnboardingDialog({ owner }: OnboardingDialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-lg">
         <h2 className="text-xl font-semibold text-card-foreground">
-          Welcome to Notetaking
+          Welcome to Numpad
         </h2>
 
         <p className="mt-4 text-sm text-muted-foreground">
