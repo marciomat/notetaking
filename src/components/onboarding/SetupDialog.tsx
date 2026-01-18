@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { QRCodeScanner } from "@/components/ui/QRCodeScanner";
 import { KeyRound, Plus } from "lucide-react";
 
 interface SetupDialogProps {
@@ -158,6 +159,16 @@ export function SetupDialog({ open, onComplete }: SetupDialogProps) {
                   <p className="mt-2 text-sm text-destructive">{error}</p>
                 )}
               </div>
+
+              <QRCodeScanner
+                onScan={(value) => {
+                  setMnemonic(value);
+                  setError("");
+                }}
+                buttonLabel="Scan QR Code"
+                buttonVariant="secondary"
+                className="w-full"
+              />
 
               <div className="flex gap-2">
                 <Button

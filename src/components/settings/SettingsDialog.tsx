@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { QRCodeDisplay } from "@/components/ui/QRCodeDisplay";
+import { QRCodeScanner } from "@/components/ui/QRCodeScanner";
 import * as Evolu from "@evolu/common";
 import { useEvolu } from "@/lib/evolu";
 import type { AppOwner } from "@evolu/common";
@@ -230,6 +232,7 @@ export function SettingsDialog({
                   </>
                 )}
               </Button>
+              <QRCodeDisplay value={mnemonic} />
             </div>
           )}
 
@@ -256,15 +259,26 @@ export function SettingsDialog({
               </Button>
             ) : (
               <div className="space-y-2">
-                <Input
-                  placeholder="Enter recovery phrase..."
-                  value={restoreMnemonic}
-                  onChange={(e) => {
-                    setRestoreMnemonic(e.target.value);
-                    setRestoreError(null);
-                  }}
-                  className="font-mono text-xs"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter recovery phrase..."
+                    value={restoreMnemonic}
+                    onChange={(e) => {
+                      setRestoreMnemonic(e.target.value);
+                      setRestoreError(null);
+                    }}
+                    className="font-mono text-xs flex-1"
+                  />
+                  <QRCodeScanner
+                    onScan={(value) => {
+                      setRestoreMnemonic(value);
+                      setRestoreError(null);
+                    }}
+                    buttonLabel=""
+                    buttonSize="icon"
+                    className="shrink-0"
+                  />
+                </div>
                 {restoreError && (
                   <p className="text-xs text-destructive">{restoreError}</p>
                 )}
