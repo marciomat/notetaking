@@ -82,7 +82,8 @@ export function Sidebar() {
   const [isTouchDragging, setIsTouchDragging] = useState(false);
   const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const touchStartNoteRef = useRef<NoteId | null>(null);
-  const hasDraggedRef = useRef(false);
+  const hasDraggedRef = useRef(false); // True if dragging (horizontal)
+  const hasScrolledRef = useRef(false); // True if scrolling (vertical)
   const touchHandledRef = useRef(false); // Prevent click after touch
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
   const folderElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -396,6 +397,7 @@ export function Sidebar() {
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
     touchStartNoteRef.current = noteId;
     hasDraggedRef.current = false;
+    hasScrolledRef.current = false;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -407,6 +409,11 @@ export function Sidebar() {
 
     const dx = Math.abs(touch.clientX - startPos.x);
     const dy = Math.abs(touch.clientY - startPos.y);
+
+    // Detect scrolling (vertical movement) - prevents selection on touchEnd
+    if (dy > 10 && dy > dx) {
+      hasScrolledRef.current = true;
+    }
 
     // Start dragging only on HORIZONTAL movement (>10px)
     // Vertical movement is for scrolling the sidebar
@@ -475,9 +482,9 @@ export function Sidebar() {
       }
     }
 
-    // If we didn't drag, this was a tap - select the note
+    // If we didn't drag or scroll, this was a tap - select the note
     const noteId = touchStartNoteRef.current;
-    if (!hasDraggedRef.current && noteId) {
+    if (!hasDraggedRef.current && !hasScrolledRef.current && noteId) {
       const note = notes.find((n) => n.id === noteId);
       if (note) {
         setSelectedNoteId(noteId);
@@ -491,6 +498,7 @@ export function Sidebar() {
     touchStartPosRef.current = null;
     touchStartNoteRef.current = null;
     hasDraggedRef.current = false;
+    hasScrolledRef.current = false;
   }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, setSelectedNoteId, setSelectedFolderId]);
 
   const handleTouchCancel = useCallback(() => {
@@ -500,6 +508,7 @@ export function Sidebar() {
     touchStartPosRef.current = null;
     touchStartNoteRef.current = null;
     hasDraggedRef.current = false;
+    hasScrolledRef.current = false;
   }, []);
 
   // Get root folders (no parent)
@@ -554,8 +563,23 @@ export function Sidebar() {
             isDropTarget && draggedNoteId && "bg-primary/20 ring-2 ring-primary ring-inset"
           )}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+            hasScrolledRef.current = false;
+          }}
+          onTouchMove={(e) => {
+            const touch = e.touches[0];
+            const startPos = touchStartPosRef.current;
+            if (!startPos) return;
+            const dy = Math.abs(touch.clientY - startPos.y);
+            if (dy > 10) {
+              hasScrolledRef.current = true;
+            }
+          }}
           onTouchEnd={(e) => {
-            if (!isTouchDragging) {
+            // Don't select if scrolling or dragging
+            if (!isTouchDragging && !hasScrolledRef.current) {
               e.preventDefault();
               // Mark that touch handled this interaction
               touchHandledRef.current = true;
@@ -568,6 +592,8 @@ export function Sidebar() {
                 toggleFolder(folder.id);
               }
             }
+            hasScrolledRef.current = false;
+            touchStartPosRef.current = null;
           }}
           onClick={handleSelect}
           onDragOver={(e) => handleDragOver(e, folder.id)}
