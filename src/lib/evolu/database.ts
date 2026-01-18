@@ -7,7 +7,7 @@ import { Schema } from "./schema";
 
 // Create the Evolu instance with sync enabled via multiple relays for redundancy
 export const evolu = Evolu.createEvolu(evoluReactWebDeps)(Schema, {
-  name: Evolu.SimpleName.orThrow("notetaking"),
+  name: Evolu.SimpleName.orThrow("numpad"),
   transports: [
     { type: "WebSocket", url: "wss://free.evoluhq.com" },
     { type: "WebSocket", url: "wss://evolu-relay.marcio-mat.workers.dev" },
