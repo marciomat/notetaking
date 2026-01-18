@@ -108,16 +108,20 @@ export function Sidebar() {
     if (!isTouchDragging) return;
 
     const preventScroll = (e: TouchEvent) => {
+      // Only prevent default to stop scrolling, don't stop propagation
+      // so our touch handlers can still detect folder positions
       e.preventDefault();
     };
 
     // Add listener with passive: false to allow preventDefault
     document.addEventListener("touchmove", preventScroll, { passive: false });
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("touchmove", preventScroll);
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     };
   }, [isTouchDragging]);
 
@@ -530,9 +534,8 @@ export function Sidebar() {
     };
 
     return (
-      <div key={folder.id}>
+      <div key={folder.id} ref={registerFolderRef}>
         <div
-          ref={registerFolderRef}
           className={cn(
             "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent [touch-action:manipulation]",
             selectedFolderId === folder.id && "bg-accent",
@@ -737,7 +740,12 @@ export function Sidebar() {
 
   return (
     <TooltipProvider>
-      <aside className="flex h-full w-full shrink-0 flex-col border-r border-border bg-background">
+      <aside
+        className="flex h-full w-full shrink-0 flex-col border-r border-border bg-background"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
         {/* Sidebar header */}
         <div className="flex h-10 items-center justify-between px-3">
           <div className="flex items-center gap-2 flex-1" onClick={clearSelection}>

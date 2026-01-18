@@ -144,6 +144,12 @@ export function AppLayout({ owner }: AppLayoutProps) {
           <div
             className="fixed inset-0 z-20 bg-black/50 md:hidden"
             onClick={() => setSidebarOpen(false)}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onTouchEnd={(e) => e.stopPropagation()}
           />
         )}
 
@@ -162,6 +168,9 @@ export function AppLayout({ owner }: AppLayoutProps) {
           style={{
             width: `${sidebarWidth}px`,
           }}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
         >
           <Sidebar />
 
