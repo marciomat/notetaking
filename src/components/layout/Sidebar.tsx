@@ -917,19 +917,6 @@ export function Sidebar() {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={handleCreateFolder}
-                >
-                  <FolderPlus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New Folder</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
                   onClick={handleCreateNote}
                 >
                   <FileText className="h-4 w-4" />
@@ -949,6 +936,19 @@ export function Sidebar() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>New Calculator</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={handleCreateFolder}
+                >
+                  <FolderPlus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New Folder</TooltipContent>
             </Tooltip>
           </div>
         </div>
