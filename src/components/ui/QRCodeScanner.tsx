@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Camera, X, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,29 +29,58 @@ export function QRCodeScanner({
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const scannerRef = useRef<unknown>(null);
+  const scannerIdRef = useRef<string>(`qr-reader-${Date.now()}`);
+  const isMountedRef = useRef(true);
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        // @ts-expect-error - Html5Qrcode type
+        const isScanning = scannerRef.current.isScanning;
+        if (isScanning) {
+          // @ts-expect-error - Html5Qrcode type
+          await scannerRef.current.stop();
+        }
+        // @ts-expect-error - Html5Qrcode type
+        scannerRef.current.clear();
+      } catch {
+        // Ignore cleanup errors
+      }
+      scannerRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
-    if (!isOpen) {
-      // Cleanup when dialog closes
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
-      setIsScanning(false);
-      setError(null);
+    isMountedRef.current = true;
+    // Generate new ID each time dialog opens
+    if (isOpen) {
+      scannerIdRef.current = `qr-reader-${Date.now()}`;
     }
-  }, [isOpen]);
+
+    return () => {
+      isMountedRef.current = false;
+      stopScanner();
+    };
+  }, [isOpen, stopScanner]);
 
   const startScanner = async () => {
-    if (!containerRef.current) return;
-
     setError(null);
     setIsScanning(true);
 
     try {
-      const scanner = new Html5Qrcode("qr-reader");
+      // Dynamic import to avoid SSR issues
+      const { Html5Qrcode } = await import("html5-qrcode");
+
+      // Stop any existing scanner first
+      await stopScanner();
+
+      // Small delay to ensure DOM is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (!isMountedRef.current) return;
+
+      const scanner = new Html5Qrcode(scannerIdRef.current);
       scannerRef.current = scanner;
 
       await scanner.start(
@@ -64,11 +92,13 @@ export function QRCodeScanner({
         },
         (decodedText) => {
           // Success callback
-          scanner.stop().catch(() => {});
-          scannerRef.current = null;
-          setIsScanning(false);
-          setIsOpen(false);
-          onScan(decodedText);
+          stopScanner().then(() => {
+            if (isMountedRef.current) {
+              setIsScanning(false);
+              setIsOpen(false);
+              onScan(decodedText);
+            }
+          });
         },
         () => {
           // Error callback (called frequently when no QR found)
@@ -76,11 +106,13 @@ export function QRCodeScanner({
         }
       );
     } catch (err) {
+      if (!isMountedRef.current) return;
+
       setIsScanning(false);
       if (err instanceof Error) {
-        if (err.message.includes("Permission")) {
+        if (err.message.includes("Permission") || err.message.includes("NotAllowedError")) {
           setError("Camera permission denied. Please allow camera access and try again.");
-        } else if (err.message.includes("NotFoundError")) {
+        } else if (err.message.includes("NotFoundError") || err.message.includes("NotFound")) {
           setError("No camera found on this device.");
         } else {
           setError("Failed to start camera. Please try again.");
@@ -91,12 +123,10 @@ export function QRCodeScanner({
     }
   };
 
-  const handleClose = () => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
-      scannerRef.current = null;
-    }
+  const handleClose = async () => {
+    await stopScanner();
     setIsScanning(false);
+    setError(null);
     setIsOpen(false);
   };
 
@@ -108,11 +138,11 @@ export function QRCodeScanner({
         className={className}
         onClick={() => setIsOpen(true)}
       >
-        <Camera className="mr-2 h-4 w-4" />
+        <Camera className={buttonLabel ? "mr-2 h-4 w-4" : "h-4 w-4"} />
         {buttonLabel}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={handleClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Scan QR Code</DialogTitle>
@@ -123,12 +153,11 @@ export function QRCodeScanner({
 
           <div className="flex flex-col items-center justify-center py-4">
             <div
-              ref={containerRef}
-              id="qr-reader"
+              id={scannerIdRef.current}
               className="w-full max-w-[300px] aspect-square bg-muted rounded-lg overflow-hidden relative"
             >
               {!isScanning && !error && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                   <ScanLine className="h-12 w-12 text-muted-foreground mb-4" />
                   <Button onClick={startScanner}>
                     <Camera className="mr-2 h-4 w-4" />
