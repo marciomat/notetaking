@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useEvolu } from "@/lib/evolu";
+import { useCurrentEvolu } from "@/components/app/TabContent";
+import { useTabStore } from "@/lib/hooks/useTabStore";
 import * as Evolu from "@evolu/common";
 import {
   Dialog,
@@ -18,33 +19,19 @@ import { KeyRound, Plus } from "lucide-react";
 interface SetupDialogProps {
   open: boolean;
   onComplete: () => void;
+  tabId?: string;
 }
 
-const SETUP_COMPLETE_KEY = "numpad_setup_complete";
-const ONBOARDING_COMPLETE_KEY = "numpad_onboarding_complete";
-
-export function isSetupComplete(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(SETUP_COMPLETE_KEY) === "true";
-}
-
-export function markSetupComplete(): void {
-  localStorage.setItem(SETUP_COMPLETE_KEY, "true");
-}
-
-function markOnboardingComplete(): void {
-  localStorage.setItem(ONBOARDING_COMPLETE_KEY, "true");
-}
-
-export function SetupDialog({ open, onComplete }: SetupDialogProps) {
-  const evolu = useEvolu();
+export function SetupDialog({ open, onComplete, tabId }: SetupDialogProps) {
+  const evolu = useCurrentEvolu();
+  const { markTabOnboardingComplete } = useTabStore();
   const [mode, setMode] = useState<"choice" | "restore">("choice");
   const [mnemonic, setMnemonic] = useState("");
   const [error, setError] = useState("");
   const [isRestoring, setIsRestoring] = useState(false);
 
   const handleCreateNew = () => {
-    markSetupComplete();
+    // Just complete setup - onboarding will show the mnemonic
     onComplete();
   };
 
@@ -75,9 +62,10 @@ export function SetupDialog({ open, onComplete }: SetupDialogProps) {
         return;
       }
 
-      // Set flags BEFORE restore since it may reload the page
-      markSetupComplete();
-      markOnboardingComplete(); // Skip onboarding since user already has their mnemonic
+      // Skip onboarding since user already has their mnemonic (they're restoring)
+      if (tabId) {
+        markTabOnboardingComplete(tabId);
+      }
 
       await evolu.restoreAppOwner(parsedMnemonic.value);
       onComplete();

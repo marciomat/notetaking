@@ -15,11 +15,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useEvolu, notesQuery } from "@/lib/evolu";
+import { createNotesQuery } from "@/lib/evolu";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import { useQuery } from "@evolu/react";
 import { CalculatorEditor } from "./CalculatorEditor";
 import { TagInput } from "./TagInput";
+import { useCurrentEvolu, useTabEvoluHook } from "@/components/app/TabContent";
 
 // Helper to parse tags from JSON string
 function parseTags(tagsJson: string | null): string[] {
@@ -33,7 +34,11 @@ function parseTags(tagsJson: string | null): string[] {
 }
 
 export function EditorPanel() {
-  const { update } = useEvolu();
+  const evoluInstance = useCurrentEvolu();
+  const { update } = useTabEvoluHook();
+  
+  // Create queries using the current tab's evolu instance
+  const notesQuery = useMemo(() => createNotesQuery(evoluInstance), [evoluInstance]);
   const notes = useQuery(notesQuery);
   const { selectedNoteId, sidebarCollapsed, setSidebarOpen } = useNoteStore();
 
@@ -54,16 +59,17 @@ export function EditorPanel() {
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     notes.forEach((note) => {
-      parseTags(note.tags).forEach((tag) => tagSet.add(tag));
+      const tagsValue = typeof note.tags === 'string' ? note.tags : null;
+      parseTags(tagsValue).forEach((tag) => tagSet.add(tag));
     });
     return Array.from(tagSet).sort();
   }, [notes]);
 
   // Get current note's tags
-  const currentTags = useMemo(
-    () => parseTags(selectedNote?.tags ?? null),
-    [selectedNote?.tags]
-  );
+  const currentTags = useMemo(() => {
+    const tagsValue = typeof selectedNote?.tags === 'string' ? selectedNote.tags : null;
+    return parseTags(tagsValue);
+  }, [selectedNote?.tags]);
 
   // Get current note's mode from database (default to "edit" for new notes)
   const currentMode = selectedNote?.viewMode ?? "edit";

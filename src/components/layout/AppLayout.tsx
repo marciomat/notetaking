@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { PanelLeft } from "lucide-react";
 import { Toolbar } from "@/components/layout/Toolbar";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -15,9 +15,9 @@ import {
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import { cn } from "@/lib/utils";
 import type { AppOwner } from "@evolu/common";
-import { useEvolu, settingsQuery, SettingsId } from "@/lib/evolu";
+import { createSettingsQuery } from "@/lib/evolu";
 import { useQuery } from "@evolu/react";
-import * as Evolu from "@evolu/common";
+import { useCurrentEvolu, useTabEvoluHook } from "@/components/app/TabContent";
 
 interface AppLayoutProps {
   owner: AppOwner;
@@ -28,8 +28,13 @@ const MAX_SIDEBAR_WIDTH = 600;
 const COLLAPSE_WIDTH = 56; // Same as the left padding when collapsed
 
 export function AppLayout({ owner }: AppLayoutProps) {
-  const { insert, update } = useEvolu();
+  const evoluInstance = useCurrentEvolu();
+  const { insert, update } = useTabEvoluHook();
+  
+  // Create queries using the current tab's evolu instance
+  const settingsQuery = useMemo(() => createSettingsQuery(evoluInstance), [evoluInstance]);
   const settings = useQuery(settingsQuery);
+  
   const {
     sidebarOpen,
     setSidebarOpen,

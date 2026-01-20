@@ -1,97 +1,63 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
-import { EvoluClientProvider } from "@/components/providers/EvoluClientProvider";
+import { Suspense, useEffect, useState } from "react";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
-import { useEvolu } from "@/lib/evolu";
-import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
-import { SetupDialog, isSetupComplete } from "@/components/onboarding/SetupDialog";
-import { AppLayout } from "@/components/layout/AppLayout";
-import type { AppOwner } from "@evolu/common";
+import { TabContent } from "@/components/app/TabContent";
+import { TabBar } from "@/components/layout/TabBar";
+import { Logo } from "@/components/ui/Logo";
+import { useTabStore } from "@/lib/hooks/useTabStore";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
-function AppContent() {
-  const evolu = useEvolu();
-  const [owner, setOwner] = useState<AppOwner | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [showSetup, setShowSetup] = useState(false);
-  const [setupChecked, setSetupChecked] = useState(false);
+function MultiTabApp() {
+  const { tabs, activeTabId } = useTabStore();
+  const [mounted, setMounted] = useState(false);
 
-  // Check if setup is complete
+  // Handle hydration mismatch for zustand persist
   useEffect(() => {
-    const setupComplete = isSetupComplete();
-    setShowSetup(!setupComplete);
-    setSetupChecked(true);
+    setMounted(true);
   }, []);
 
-  useEffect(() => {
-    // Don't load owner until setup check is done
-    if (!setupChecked) return;
-
-    let mounted = true;
-
-    evolu.appOwner
-      .then((appOwner) => {
-        if (mounted) {
-          setOwner(appOwner);
-        }
-      })
-      .catch((err) => {
-        if (mounted) {
-          console.error("Failed to load app owner:", err);
-          setError(err instanceof Error ? err : new Error(String(err)));
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [evolu, setupChecked]);
-
-  const handleSetupComplete = () => {
-    setShowSetup(false);
-    // Reload the owner after restore
-    evolu.appOwner.then(setOwner).catch(console.error);
-  };
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
-        <h1 className="text-2xl font-bold text-red-600">Database Error</h1>
-        <p className="mt-4 max-w-md text-sm text-gray-600">{error.message}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-6 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  // Show setup dialog if needed
-  if (showSetup && owner) {
-    return <SetupDialog open={true} onComplete={handleSetupComplete} />;
-  }
-
-  if (!owner) {
+  if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="mt-4 text-muted-foreground">Initializing database...</p>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-      <OnboardingDialog owner={owner} />
-      <AppLayout owner={owner} />
-      <OfflineIndicator />
-    </>
+    <TooltipProvider>
+      <div className="flex h-screen flex-col overflow-hidden">
+        {/* Tab header bar */}
+        <div className="flex h-10 shrink-0 items-center border-b border-border bg-muted/30 px-2">
+          <div className="flex items-center gap-2 pr-4">
+            <Logo size={18} className="text-primary" />
+            <span className="text-sm font-semibold">Numpad</span>
+          </div>
+          <TabBar className="flex-1" />
+        </div>
+
+        {/* Tab content - each tab gets its own Evolu provider */}
+        <div className="relative flex-1 overflow-hidden">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={cn(
+                "absolute inset-0",
+                activeTabId === tab.id ? "z-10 visible" : "z-0 invisible"
+              )}
+            >
+              <TabContent tabId={tab.id} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -110,15 +76,11 @@ export function NotetakingApp() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <ErrorBoundary>
-          <EvoluClientProvider>
-            <Suspense fallback={<LoadingFallback />}>
-              <ErrorBoundary>
-                <AppContent />
-              </ErrorBoundary>
-            </Suspense>
-          </EvoluClientProvider>
-        </ErrorBoundary>
+        <Suspense fallback={<LoadingFallback />}>
+          <ErrorBoundary>
+            <MultiTabApp />
+          </ErrorBoundary>
+        </Suspense>
       </ThemeProvider>
     </ErrorBoundary>
   );

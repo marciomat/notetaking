@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { QRCodeDisplay } from "@/components/ui/QRCodeDisplay";
 import { QRCodeScanner } from "@/components/ui/QRCodeScanner";
 import * as Evolu from "@evolu/common";
-import { useEvolu } from "@/lib/evolu";
+import { useCurrentEvolu } from "@/components/app/TabContent";
 import type { AppOwner } from "@evolu/common";
 
 const SETUP_COMPLETE_KEY = "numpad_setup_complete";
@@ -42,7 +42,7 @@ export function SettingsDialog({
   onOpenChange,
   owner,
 }: SettingsDialogProps) {
-  const evolu = useEvolu();
+  const evolu = useCurrentEvolu();
   const [copied, setCopied] = useState(false);
   const [restoreMnemonic, setRestoreMnemonic] = useState("");
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);

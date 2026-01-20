@@ -2,26 +2,30 @@
 
 import { useState, useEffect } from "react";
 import type { AppOwner } from "@evolu/common";
+import { useTabStore } from "@/lib/hooks/useTabStore";
+import { Button } from "@/components/ui/button";
+import { Copy, Check, AlertTriangle } from "lucide-react";
 
 interface OnboardingDialogProps {
   owner: AppOwner;
+  tabId: string;
 }
 
-const ONBOARDING_COMPLETE_KEY = "numpad_onboarding_complete";
-
-export function OnboardingDialog({ owner }: OnboardingDialogProps) {
+export function OnboardingDialog({ owner, tabId }: OnboardingDialogProps) {
+  const { tabs, markTabOnboardingComplete } = useTabStore();
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const mnemonic = owner.mnemonic ?? "";
+  const tab = tabs.find((t) => t.id === tabId);
+  const isOnboardingComplete = tab?.isOnboardingComplete ?? false;
 
   useEffect(() => {
-    // Check if onboarding was already completed
-    const completed = localStorage.getItem(ONBOARDING_COMPLETE_KEY);
-    if (!completed && mnemonic) {
+    // Show onboarding if not completed for this tab
+    if (!isOnboardingComplete && mnemonic) {
       setIsOpen(true);
     }
-  }, [mnemonic]);
+  }, [isOnboardingComplete, mnemonic]);
 
   const handleCopyMnemonic = async () => {
     if (!mnemonic) return;
@@ -44,7 +48,7 @@ export function OnboardingDialog({ owner }: OnboardingDialogProps) {
   };
 
   const handleComplete = () => {
-    localStorage.setItem(ONBOARDING_COMPLETE_KEY, "true");
+    markTabOnboardingComplete(tabId);
     setIsOpen(false);
   };
 
@@ -75,27 +79,39 @@ export function OnboardingDialog({ owner }: OnboardingDialogProps) {
         </div>
 
         <div className="mt-4 flex gap-2">
-          <button
+          <Button
+            variant="secondary"
             onClick={handleCopyMnemonic}
-            className="flex-1 rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
+            className="flex-1 gap-2"
           >
-            {copied ? "Copied!" : "Copy to Clipboard"}
-          </button>
+            {copied ? (
+              <>
+                <Check className="h-4 w-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                Copy to Clipboard
+              </>
+            )}
+          </Button>
         </div>
 
-        <div className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 p-3">
+        <div className="mt-4 flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <p className="text-sm text-destructive">
             <strong>Warning:</strong> If you lose this recovery phrase, you will
             not be able to recover your notes. Store it securely.
           </p>
         </div>
 
-        <button
+        <Button
           onClick={handleComplete}
-          className="mt-6 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="mt-6 w-full"
         >
           I&apos;ve Saved My Recovery Phrase
-        </button>
+        </Button>
       </div>
     </div>
   );

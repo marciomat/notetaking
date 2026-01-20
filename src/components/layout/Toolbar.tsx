@@ -11,7 +11,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SettingsDialog } from "@/components/settings/SettingsDialog";
-import { Logo } from "@/components/ui/Logo";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import type { AppOwner } from "@evolu/common";
 
@@ -39,7 +38,7 @@ export function Toolbar({ owner }: ToolbarProps) {
   return (
     <TooltipProvider>
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-background px-4">
-        {/* Left side - Menu button + App title */}
+        {/* Left side - Menu button */}
         <div className="flex items-center gap-2">
           {/* Mobile menu button - only shown when sidebar is closed */}
           {!sidebarOpen && (
@@ -53,9 +52,6 @@ export function Toolbar({ owner }: ToolbarProps) {
               <span className="sr-only">Open menu</span>
             </Button>
           )}
-
-          <Logo size={22} className="text-primary" />
-          <h1 className="text-lg font-semibold">Numpad</h1>
         </div>
 
         {/* Right side - Actions */}

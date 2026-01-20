@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
-  Plus,
   FolderPlus,
   ChevronRight,
   ChevronDown,
@@ -41,12 +40,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useEvolu, foldersQuery, notesQuery } from "@/lib/evolu";
+import { createFoldersQuery, createNotesQuery } from "@/lib/evolu";
 import type { FolderId, NoteId } from "@/lib/evolu";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
+import { useCurrentEvolu, useTabEvoluHook } from "@/components/app/TabContent";
 
 export function Sidebar() {
-  const { insert, update } = useEvolu();
+  const evoluInstance = useCurrentEvolu();
+  const { insert, update } = useTabEvoluHook();
+  
+  // Create queries using the current tab's evolu instance
+  const foldersQuery = useMemo(() => createFoldersQuery(evoluInstance), [evoluInstance]);
+  const notesQuery = useMemo(() => createNotesQuery(evoluInstance), [evoluInstance]);
+  
   const folders = useQuery(foldersQuery);
   const notes = useQuery(notesQuery);
   const {
@@ -895,9 +901,8 @@ export function Sidebar() {
     const isDragging = draggedNoteId === note.id;
 
     return (
-      <>
+      <React.Fragment key={note.id}>
       <div
-        key={note.id}
         className={cn(
           "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
           // Allow vertical scrolling (pan-y), but we handle horizontal drag ourselves
@@ -990,7 +995,7 @@ export function Sidebar() {
         {inlineError}
       </p>
     )}
-    </>
+    </React.Fragment>
     );
   };
 
