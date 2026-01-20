@@ -9,6 +9,8 @@ export interface DatabaseTab {
   isSetupComplete: boolean;
   isOnboardingComplete: boolean;
   createdAt: number;
+  /** Key to force component remount after restore */
+  refreshKey?: number;
 }
 
 interface TabStore {
@@ -22,6 +24,7 @@ interface TabStore {
   renameTab: (id: string, name: string) => void;
   markTabSetupComplete: (id: string) => void;
   markTabOnboardingComplete: (id: string) => void;
+  refreshTab: (id: string) => void;
   getActiveTab: () => DatabaseTab | null;
 }
 
@@ -120,6 +123,14 @@ export const useTabStore = create<TabStore>()(
         set((state) => ({
           tabs: state.tabs.map((t) =>
             t.id === id ? { ...t, isOnboardingComplete: true } : t
+          ),
+        }));
+      },
+
+      refreshTab: (id: string) => {
+        set((state) => ({
+          tabs: state.tabs.map((t) =>
+            t.id === id ? { ...t, refreshKey: Date.now() } : t
           ),
         }));
       },

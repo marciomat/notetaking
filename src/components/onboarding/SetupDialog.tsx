@@ -62,13 +62,22 @@ export function SetupDialog({ open, onComplete, tabId }: SetupDialogProps) {
         return;
       }
 
-      // Skip onboarding since user already has their mnemonic (they're restoring)
+      // Mark setup and onboarding complete BEFORE restoreAppOwner
+      // These flags must be persisted before the page reloads
       if (tabId) {
         markTabOnboardingComplete(tabId);
+        const { markTabSetupComplete } = useTabStore.getState();
+        markTabSetupComplete(tabId);
       }
 
+      // Evolu's restoreAppOwner resets and reinitializes the database
+      // It requires a page reload to ensure all state is refreshed
+      // This is the recommended approach per Evolu documentation
       await evolu.restoreAppOwner(parsedMnemonic.value);
-      onComplete();
+      
+      // restoreAppOwner with default options triggers reload automatically
+      // If we reach here, the reload didn't happen, so trigger it manually
+      evolu.reloadApp();
     } catch (err) {
       console.error("Failed to restore:", err);
       setError("Failed to restore from recovery phrase. Please check and try again.");

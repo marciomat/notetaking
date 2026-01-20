@@ -64,6 +64,13 @@ export function hasEvoluInstance(tabId: string): boolean {
   return evoluInstances.has(tabId);
 }
 
+// Invalidate and remove a cached Evolu instance for a tab
+// This forces a new instance to be created on next access
+// Used after restoreAppOwner to ensure fresh state
+export function invalidateEvoluInstance(tabId: string): void {
+  evoluInstances.delete(tabId);
+}
+
 // For backwards compatibility - the default instance
 export const evolu = getEvoluForTab("default");
 export const useEvolu = createUseEvolu(evolu);
