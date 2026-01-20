@@ -57,6 +57,45 @@ function TabAppContent({ tabId }: { tabId: string }) {
   const tab = tabs.find(t => t.id === tabId);
   const isSetupComplete = tab?.isSetupComplete ?? false;
 
+  // Subscribe to Evolu errors to detect sync issues
+  useEffect(() => {
+    const unsubscribe = evoluInstance.subscribeError(() => {
+      const evoluError = evoluInstance.getError();
+      if (evoluError) {
+        // Only log non-quota errors as errors, quota is just a warning
+        if (evoluError.type === "ProtocolQuotaError") {
+          console.warn("[Evolu] Quota exceeded for owner:", evoluError.ownerId);
+        } else {
+          console.error("[Evolu Sync Error]", evoluError);
+        }
+      }
+    });
+    return unsubscribe;
+  }, [evoluInstance]);
+
+  // Debug: Log sync state and owner info on mount
+  // Also trigger useOwner to ensure sync is active (fixes stale SharedWorker state)
+  useEffect(() => {
+    let unuseOwner: (() => void) | null = null;
+    
+    evoluInstance.appOwner.then((appOwner) => {
+      console.log("[Evolu Debug] Tab:", tabId, "Owner ID:", appOwner.id);
+      console.log("[Evolu Debug] Mnemonic present:", !!appOwner.mnemonic);
+      
+      // Force sync by re-using the owner
+      // This ensures sync is active even if SharedWorker state was stale
+      unuseOwner = evoluInstance.useOwner(appOwner);
+      console.log("[Evolu Debug] Triggered useOwner for sync");
+    });
+    
+    // Return cleanup to stop using the owner when unmounting
+    return () => {
+      if (unuseOwner) {
+        unuseOwner();
+      }
+    };
+  }, [evoluInstance, tabId]);
+
   // Check if setup is complete for this tab
   useEffect(() => {
     setShowSetup(!isSetupComplete);
