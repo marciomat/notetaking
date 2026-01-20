@@ -131,20 +131,20 @@ export function TabBar({ className }: TabBarProps) {
             )}
           >
             {editingTabId === tab.id ? (
-              <div className="flex items-center gap-1">
+              <div className="flex w-full items-center gap-1">
                 <Input
                   ref={editInputRef}
                   value={editingName}
                   onChange={(e) => setEditingName(e.target.value)}
                   onBlur={handleFinishRename}
                   onKeyDown={handleKeyDown}
-                  className="h-5 w-24 px-1 py-0 text-xs"
+                  className="h-5 flex-1 px-1 py-0 text-xs"
                   onClick={(e) => e.stopPropagation()}
                 />
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-4 w-4 p-0"
+                  className="h-4 w-4 shrink-0 p-0"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleFinishRename();
@@ -155,37 +155,40 @@ export function TabBar({ className }: TabBarProps) {
               </div>
             ) : (
               <>
-                <span className="truncate">{tab.name}</span>
+                <span className="flex-1 truncate">{tab.name}</span>
                 
-                {/* Rename button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100"
-                      onClick={(e) => handleStartRename(tab, e)}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Rename tab</TooltipContent>
-                </Tooltip>
+                {/* Action buttons container - stays on the right */}
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {/* Rename button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => handleStartRename(tab, e)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Rename tab</TooltipContent>
+                  </Tooltip>
 
-                {/* Close button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100"
-                      onClick={(e) => handleCloseTab(tab, e)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Close tab</TooltipContent>
-                </Tooltip>
+                  {/* Close button */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => handleCloseTab(tab, e)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Close tab</TooltipContent>
+                  </Tooltip>
+                </div>
               </>
             )}
           </div>
