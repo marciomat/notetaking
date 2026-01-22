@@ -12,6 +12,9 @@
     "preview": "npm run pages:build && wrangler pages dev .vercel/output/static"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@evolu/common": "^7.4.1",
     "@evolu/react": "^10.4.0",
     "@evolu/react-web": "^2.4.0",

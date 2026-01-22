@@ -162,10 +162,10 @@ export function AppLayout({ owner }: AppLayoutProps) {
         <div
           ref={sidebarRef}
           className={cn(
-            "fixed inset-y-0 left-0 z-30 transform md:relative md:z-0",
-            // Mobile: slide in/out based on sidebarOpen with transition
-            sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-            !isResizing && "transition-transform duration-200 ease-in-out",
+            "fixed inset-y-0 z-30 md:relative md:z-0",
+            // Mobile: use left positioning instead of transforms to avoid affecting DragOverlay
+            sidebarOpen ? "left-0" : "-left-full md:left-0",
+            !isResizing && "transition-[left] duration-200 ease-in-out",
             // Desktop: hide when collapsed
             sidebarCollapsed && "md:hidden",
             "top-12 md:top-0" // Account for toolbar on mobile

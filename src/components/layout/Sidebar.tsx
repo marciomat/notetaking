@@ -15,7 +15,30 @@ import {
   Calculator,
   Search,
   Tag,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@evolu/react";
 import * as Evolu from "@evolu/common";
@@ -44,6 +67,15 @@ import { createFoldersQuery, createNotesQuery } from "@/lib/evolu";
 import type { FolderId, NoteId } from "@/lib/evolu";
 import { useNoteStore } from "@/lib/hooks/useNoteStore";
 import { useCurrentEvolu, useTabEvoluHook } from "@/components/app/TabContent";
+
+// Type for active drag item info
+interface ActiveDragItem {
+  id: string;
+  type: "note" | "folder";
+  title: string;
+  noteType?: string;
+  isPinned?: boolean;
+}
 
 export function Sidebar() {
   const evoluInstance = useCurrentEvolu();
@@ -87,19 +119,10 @@ export function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
-  // Drag and drop state
-  const [draggedNoteId, setDraggedNoteId] = useState<NoteId | null>(null);
-  const [dropTargetFolderId, setDropTargetFolderId] = useState<FolderId | "root" | null>(null);
-
-  // Touch drag state
-  const [isTouchDragging, setIsTouchDragging] = useState(false);
-  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  const touchStartNoteRef = useRef<NoteId | null>(null);
-  const hasDraggedRef = useRef(false); // True if dragging (horizontal)
-  const hasScrolledRef = useRef(false); // True if scrolling (vertical)
-  const touchHandledRef = useRef(false); // Prevent click after touch
+  // dnd-kit drag state
+  const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
+  const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
-  const folderElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // State for creating new items - shows input immediately before database insert
   const [creatingItem, setCreatingItem] = useState<{
@@ -187,28 +210,26 @@ export function Sidebar() {
     );
   }, [tagSearchQuery, allTags, tagFilter]);
 
-
-  // Prevent scrolling on entire page when touch dragging
-  useEffect(() => {
-    if (!isTouchDragging) return;
-
-    const preventScroll = (e: TouchEvent) => {
-      // Only prevent default to stop scrolling, don't stop propagation
-      // so our touch handlers can still detect folder positions
-      e.preventDefault();
-    };
-
-    // Add listener with passive: false to allow preventDefault
-    document.addEventListener("touchmove", preventScroll, { passive: false });
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("touchmove", preventScroll);
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    };
-  }, [isTouchDragging]);
+  // Configure dnd-kit sensors for both desktop and mobile
+  // PointerSensor: 8px distance before activating (prevents accidental drags)
+  // TouchSensor: 150ms delay with 5px tolerance for mobile
+  // KeyboardSensor: accessible keyboard navigation
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Auto-expand parent folders when a note is selected
   useEffect(() => {
@@ -258,6 +279,7 @@ export function Sidebar() {
     setEditingName(currentName);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const cancelEdit = useCallback((type: "note" | "folder") => {
     setEditingId(null);
     setEditingName("");
@@ -448,191 +470,98 @@ export function Sidebar() {
     setDeleteDialog({ open: false, type: null, id: null, name: "" });
   };
 
-  // Drag and drop handlers
-  const handleDragStart = useCallback((e: React.DragEvent, noteId: NoteId) => {
-    setDraggedNoteId(noteId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", noteId);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedNoteId(null);
-    setDropTargetFolderId(null);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, folderId: FolderId | "root") => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    setDropTargetFolderId(folderId);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    // Only clear if we're leaving to something outside (not a child element)
-    const relatedTarget = e.relatedTarget as HTMLElement;
-    if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
-      setDropTargetFolderId(null);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetFolderId: FolderId | "root") => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!draggedNoteId) return;
-
-    const note = notes.find((n) => n.id === draggedNoteId);
-    if (!note) return;
-
-    // Determine new folder ID (null for root)
-    const newFolderId = targetFolderId === "root" ? null : targetFolderId;
-
-    // Only update if actually changing folders
-    if (note.folderId !== newFolderId) {
-      // Check for duplicate name in target folder
-      if (noteNameExistsInFolder(note.title, newFolderId, draggedNoteId)) {
-        setDuplicateError(`A note named "${note.title}" already exists in the destination folder`);
-        setDraggedNoteId(null);
-        setDropTargetFolderId(null);
-        return;
-      }
-
-      update("note", { id: draggedNoteId, folderId: newFolderId });
-
-      // Expand the target folder if dropping into one
-      if (newFolderId) {
-        setExpandedFolders((prev) => new Set(prev).add(newFolderId));
-      }
-    }
-
-    setDraggedNoteId(null);
-    setDropTargetFolderId(null);
-  }, [draggedNoteId, notes, update, noteNameExistsInFolder]);
-
-  // Touch drag handlers for mobile - drag starts immediately on touch
-  const handleTouchStart = useCallback((e: React.TouchEvent, noteId: NoteId) => {
-    const touch = e.touches[0];
-    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-    touchStartNoteRef.current = noteId;
-    hasDraggedRef.current = false;
-    hasScrolledRef.current = false;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    const startPos = touchStartPosRef.current;
-    const noteId = touchStartNoteRef.current;
-
-    if (!startPos || !noteId) return;
-
-    const dx = Math.abs(touch.clientX - startPos.x);
-    const dy = Math.abs(touch.clientY - startPos.y);
-
-    // Detect scrolling (vertical movement) - prevents selection on touchEnd
-    if (dy > 10 && dy > dx) {
-      hasScrolledRef.current = true;
-    }
-
-    // Start dragging only on HORIZONTAL movement (>10px)
-    // Vertical movement is for scrolling the sidebar
-    if (!isTouchDragging && dx > 10 && dx > dy) {
-      setDraggedNoteId(noteId);
-      setIsTouchDragging(true);
-      hasDraggedRef.current = true;
-      // Vibrate to indicate drag started (if supported)
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }
-
-    // If we're touch dragging, find the drop target under the touch point
-    if (isTouchDragging || hasDraggedRef.current) {
-      e.preventDefault(); // Prevent scrolling while dragging
-
-      // Find element under touch point
-      const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (!elementUnderTouch) {
-        setDropTargetFolderId("root");
-        return;
-      }
-
-      // Check if we're over a folder
-      let foundFolder = false;
-      folderElementsRef.current.forEach((element, folderId) => {
-        if (element.contains(elementUnderTouch)) {
-          setDropTargetFolderId(folderId as FolderId);
-          foundFolder = true;
-        }
-      });
-
-      if (!foundFolder) {
-        // Check if we're over the sidebar container (root drop target)
-        if (sidebarContainerRef.current?.contains(elementUnderTouch)) {
-          setDropTargetFolderId("root");
-        } else {
-          setDropTargetFolderId(null);
-        }
-      }
-    }
-  }, [isTouchDragging, draggedNoteId]);
-
-  const handleTouchEnd = useCallback(() => {
-    // Mark that touch handled this interaction (prevents click from firing)
-    touchHandledRef.current = true;
-    // Reset after a short delay to allow future clicks
-    setTimeout(() => {
-      touchHandledRef.current = false;
-    }, 100);
-
-    // If we dragged, handle the drop
-    if (isTouchDragging && draggedNoteId && dropTargetFolderId) {
-      const note = notes.find((n) => n.id === draggedNoteId);
+  // dnd-kit drag handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    const type = active.data.current?.itemType as "note" | "folder" | "calculator" | undefined;
+    
+    if (type === "note" || type === "calculator") {
+      const note = notes.find((n) => n.id === active.id);
       if (note) {
-        const newFolderId = dropTargetFolderId === "root" ? null : dropTargetFolderId;
+        setActiveDragItem({
+          id: active.id as string,
+          type: "note",
+          title: note.title,
+          noteType: note.noteType ?? "note",
+          isPinned: note.isPinned === Evolu.sqliteTrue,
+        });
+      }
+    } else if (type === "folder") {
+      const folder = folders.find((f) => f.id === active.id);
+      if (folder) {
+        setActiveDragItem({
+          id: active.id as string,
+          type: "folder",
+          title: folder.name,
+        });
+      }
+    }
+  }, [notes, folders]);
 
-        if (note.folderId !== newFolderId) {
-          // Check for duplicate name in target folder
-          if (noteNameExistsInFolder(note.title, newFolderId, draggedNoteId)) {
-            setDuplicateError(`A note named "${note.title}" already exists in the destination folder`);
-          } else {
-            update("note", { id: draggedNoteId, folderId: newFolderId });
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event;
+    setOverId(over?.id ?? null);
+  }, []);
 
-            if (newFolderId) {
-              setExpandedFolders((prev) => new Set(prev).add(newFolderId));
-            }
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    setActiveDragItem(null);
+    setOverId(null);
+
+    if (!over) return;
+
+    const activeType = active.data.current?.itemType as string | undefined;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Handle note/calculator drop
+    if (activeType === "note" || activeType === "calculator") {
+      const note = notes.find((n) => n.id === activeId);
+      if (!note) return;
+
+      // Determine target folder
+      let targetFolderId: FolderId | null = null;
+      
+      if (overId === "sidebar-root") {
+        targetFolderId = null;
+      } else if (overId.startsWith("folder-drop-")) {
+        targetFolderId = overId.replace("folder-drop-", "") as FolderId;
+      } else {
+        // Check if dropping on a folder item
+        const targetFolder = folders.find((f) => f.id === overId);
+        if (targetFolder) {
+          targetFolderId = targetFolder.id;
+        } else {
+          // Dropping on another note - use that note's folder
+          const targetNote = notes.find((n) => n.id === overId);
+          if (targetNote) {
+            targetFolderId = targetNote.folderId;
           }
         }
       }
-    }
 
-    // If we didn't drag or scroll, this was a tap - select the note
-    const noteId = touchStartNoteRef.current;
-    if (!hasDraggedRef.current && !hasScrolledRef.current && noteId) {
-      const note = notes.find((n) => n.id === noteId);
-      if (note) {
-        setSelectedNoteId(noteId);
-        setSelectedFolderId(note.folderId);
+      // Only update if actually changing folders
+      if (note.folderId !== targetFolderId) {
+        // Check for duplicate name in target folder
+        if (noteNameExistsInFolder(note.title, targetFolderId, activeId as NoteId)) {
+          setDuplicateError(`A note named "${note.title}" already exists in the destination folder`);
+          return;
+        }
+
+        update("note", { id: activeId as NoteId, folderId: targetFolderId });
+
+        // Expand the target folder if dropping into one
+        if (targetFolderId) {
+          setExpandedFolders((prev) => new Set(prev).add(targetFolderId));
+        }
       }
     }
+  }, [notes, folders, update, noteNameExistsInFolder]);
 
-    setDraggedNoteId(null);
-    setDropTargetFolderId(null);
-    setIsTouchDragging(false);
-    touchStartPosRef.current = null;
-    touchStartNoteRef.current = null;
-    hasDraggedRef.current = false;
-    hasScrolledRef.current = false;
-  }, [isTouchDragging, draggedNoteId, dropTargetFolderId, notes, update, setSelectedNoteId, setSelectedFolderId, noteNameExistsInFolder]);
-
-  const handleTouchCancel = useCallback(() => {
-    setDraggedNoteId(null);
-    setDropTargetFolderId(null);
-    setIsTouchDragging(false);
-    touchStartPosRef.current = null;
-    touchStartNoteRef.current = null;
-    hasDraggedRef.current = false;
-    hasScrolledRef.current = false;
+  const handleDragCancel = useCallback(() => {
+    setActiveDragItem(null);
+    setOverId(null);
   }, []);
 
   // Helper to check if a note matches the tag filter
@@ -687,8 +616,6 @@ export function Sidebar() {
     const hasChildren = subfolders.length > 0 || folderNotes.length > 0;
 
     const handleSelect = () => {
-      // Skip if touch already handled this interaction
-      if (touchHandledRef.current) return;
       setSelectedFolderId(folder.id);
       setSelectedNoteId(null);
       if (hasChildren) {
@@ -696,139 +623,32 @@ export function Sidebar() {
       }
     };
 
-    const isDropTarget = dropTargetFolderId === folder.id;
-
-    // Register folder element ref for touch drag detection
-    const registerFolderRef = (el: HTMLDivElement | null) => {
-      if (el) {
-        folderElementsRef.current.set(folder.id, el);
-      } else {
-        folderElementsRef.current.delete(folder.id);
-      }
-    };
+    // Check if this folder is being hovered as a drop target
+    const isDropTarget = overId === folder.id || overId === `folder-drop-${folder.id}`;
 
     return (
-      <div key={folder.id} ref={registerFolderRef}>
-        <div
-          className={cn(
-            "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
-            // Allow vertical scrolling
-            isTouchDragging ? "touch-none" : "[touch-action:pan-y]",
-            selectedFolderId === folder.id && "bg-accent",
-            isDropTarget && draggedNoteId && "bg-primary/20 ring-2 ring-primary ring-inset"
-          )}
-          style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-            hasScrolledRef.current = false;
-          }}
-          onTouchMove={(e) => {
-            const touch = e.touches[0];
-            const startPos = touchStartPosRef.current;
-            if (!startPos) return;
-            const dy = Math.abs(touch.clientY - startPos.y);
-            if (dy > 10) {
-              hasScrolledRef.current = true;
-            }
-          }}
-          onTouchEnd={(e) => {
-            // Don't select if scrolling or dragging
-            if (!isTouchDragging && !hasScrolledRef.current) {
-              e.preventDefault();
-              // Mark that touch handled this interaction
-              touchHandledRef.current = true;
-              setTimeout(() => {
-                touchHandledRef.current = false;
-              }, 100);
-              setSelectedFolderId(folder.id);
-              setSelectedNoteId(null);
-              if (hasChildren) {
-                toggleFolder(folder.id);
-              }
-            }
-            hasScrolledRef.current = false;
-            touchStartPosRef.current = null;
-          }}
-          onClick={handleSelect}
-          onDragOver={(e) => handleDragOver(e, folder.id)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, folder.id)}
-        >
-          {hasChildren ? (
-            isExpanded ? (
-              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-            )
-          ) : (
-            <span className="w-4" />
-          )}
-          <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-          {editingId === folder.id ? (
-            <Input
-              ref={editInputRef}
-              value={editingName}
-              onChange={(e) => {
-                setEditingName(e.target.value);
-                setInlineError(null);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  saveEdit(folder.id, "folder");
-                } else if (e.key === "Escape") {
-                  cancelEdit("folder");
-                }
-              }}
-              onBlur={(e) => {
-                const success = saveEdit(folder.id, "folder");
-                if (!success) {
-                  // Refocus on error
-                  e.target.focus();
-                }
-              }}
-              className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <span className="flex-1 truncate">{folder.name}</span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
-            onClick={(e) => startEdit(folder.id, folder.name, e)}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              startEdit(folder.id, folder.name, e);
-            }}
-          >
-            <Pencil className="h-3 w-3 text-muted-foreground" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
-            onClick={(e) => handleDeleteFolder(folder, e)}
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              handleDeleteFolder(folder, e);
-            }}
-          >
-            <Trash2 className="h-3 w-3 text-muted-foreground" />
-          </Button>
-        </div>
-
-        {/* Inline error for folder rename */}
-        {editingId === folder.id && inlineError && (
-          <p
-            className="text-xs text-destructive px-2 py-1"
-            style={{ paddingLeft: `${depth * 12 + 28}px` }}
-          >
-            {inlineError}
-          </p>
-        )}
-
+      <DroppableFolderItem
+        key={folder.id}
+        folder={folder}
+        depth={depth}
+        isExpanded={isExpanded}
+        isSelected={selectedFolderId === folder.id}
+        isDropTarget={isDropTarget && activeDragItem !== null}
+        isEditing={editingId === folder.id}
+        editingName={editingName}
+        inlineError={inlineError}
+        hasChildren={hasChildren}
+        onSelect={handleSelect}
+        onStartEdit={(e) => startEdit(folder.id, folder.name, e)}
+        onDelete={(e) => handleDeleteFolder(folder, e)}
+        onEditingNameChange={(name) => {
+          setEditingName(name);
+          setInlineError(null);
+        }}
+        onSaveEdit={() => saveEdit(folder.id, "folder")}
+        onCancelEdit={() => cancelEdit("folder")}
+        editInputRef={editInputRef}
+      >
         {isExpanded && (
           <>
             {/* Creating new item input - shown inside folder when this folder is selected */}
@@ -886,147 +706,81 @@ export function Sidebar() {
             {folderNotes.map((note) => renderNote(note, depth + 1))}
           </>
         )}
-      </div>
+      </DroppableFolderItem>
     );
   };
 
   const renderNote = (note: (typeof notes)[number], depth = 0) => {
-    const handleSelect = () => {
-      // Skip if touch already handled this interaction
-      if (touchHandledRef.current) return;
-      setSelectedNoteId(note.id);
-      setSelectedFolderId(note.folderId);
-    };
-
-    const isDragging = draggedNoteId === note.id;
-
     return (
-      <React.Fragment key={note.id}>
-      <div
-        className={cn(
-          "group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
-          // Allow vertical scrolling (pan-y), but we handle horizontal drag ourselves
-          isTouchDragging ? "touch-none" : "[touch-action:pan-y]",
-          selectedNoteId === note.id && "bg-accent",
-          isDragging && "opacity-50 scale-105 z-10 relative",
-          isTouchDragging && isDragging && "shadow-lg bg-accent"
-        )}
-        style={{ paddingLeft: `${depth * 12 + 28}px` }}
-        draggable={!isTouchDragging}
-        onDragStart={(e) => handleDragStart(e, note.id)}
-        onDragEnd={handleDragEnd}
-        onTouchStart={(e) => handleTouchStart(e, note.id)}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleTouchEnd();
+      <SortableNoteItem
+        key={note.id}
+        note={note}
+        depth={depth}
+        isSelected={selectedNoteId === note.id}
+        isDragging={activeDragItem?.id === note.id}
+        isEditing={editingId === note.id}
+        editingName={editingName}
+        inlineError={inlineError}
+        onSelect={() => {
+          setSelectedNoteId(note.id);
+          setSelectedFolderId(note.folderId);
         }}
-        onTouchCancel={handleTouchCancel}
-        onClick={handleSelect}
-      >
-      {/* Pin icon - always visible when note is pinned, before note icon */}
-      {note.isPinned === Evolu.sqliteTrue && (
-        <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />
-      )}
-      {note.noteType === "calculator" ? (
-        <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
-      ) : (
-        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-      )}
-      {editingId === note.id ? (
-        <Input
-          ref={editInputRef}
-          value={editingName}
-          onChange={(e) => {
-            setEditingName(e.target.value);
-            setInlineError(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              saveEdit(note.id, "note");
-            } else if (e.key === "Escape") {
-              cancelEdit("note");
-            }
-          }}
-          onBlur={(e) => {
-            const success = saveEdit(note.id, "note");
-            if (!success) {
-              // Refocus on error
-              e.target.focus();
-            }
-          }}
-          className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <span className="flex-1 truncate">{note.title}</span>
-      )}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
-        onClick={(e) => startEdit(note.id, note.title, e)}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          startEdit(note.id, note.title, e);
+        onStartEdit={(e) => startEdit(note.id, note.title, e)}
+        onDelete={(e) => handleDeleteNote(note, e)}
+        onEditingNameChange={(name) => {
+          setEditingName(name);
+          setInlineError(null);
         }}
-      >
-        <Pencil className="h-3 w-3 text-muted-foreground" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
-        onClick={(e) => handleDeleteNote(note, e)}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          handleDeleteNote(note, e);
-        }}
-      >
-        <Trash2 className="h-3 w-3 text-muted-foreground" />
-      </Button>
-    </div>
-    {/* Inline error for note rename */}
-    {editingId === note.id && inlineError && (
-      <p
-        className="text-xs text-destructive px-2 py-1"
-        style={{ paddingLeft: `${depth * 12 + 28}px` }}
-      >
-        {inlineError}
-      </p>
-    )}
-    </React.Fragment>
+        onSaveEdit={() => saveEdit(note.id, "note")}
+        onCancelEdit={() => cancelEdit("note")}
+        editInputRef={editInputRef}
+      />
     );
   };
 
+  // Get all item IDs for SortableContext
+  // Include sidebar-root so it's always considered for drops even when empty
+  const allItemIds = useMemo(() => {
+    const ids: string[] = ["sidebar-root"];
+    rootFolders.forEach((f) => ids.push(f.id));
+    rootNotes.forEach((n) => ids.push(n.id));
+    return ids;
+  }, [rootFolders, rootNotes]);
+
   return (
-    <TooltipProvider>
-      <aside
-        className="flex h-full w-full shrink-0 flex-col border-r border-border bg-background"
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
-        {/* Sidebar header */}
-        <div className="flex h-10 items-center justify-between px-3">
-          <div className="flex items-center gap-2 flex-1" onClick={clearSelection}>
-            {/* Desktop: Collapse button */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 hidden md:flex"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSidebarCollapsed();
-                  }}
-                >
-                  <PanelLeftClose className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Collapse Sidebar</TooltipContent>
-            </Tooltip>
+        <TooltipProvider>
+          <aside
+            className="flex h-full w-full shrink-0 flex-col border-r border-border bg-background"
+        >
+          {/* Sidebar header */}
+          <div className="flex h-10 items-center justify-between px-3">
+            <div className="flex items-center gap-2 flex-1" onClick={clearSelection}>
+              {/* Desktop: Collapse button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 hidden md:flex"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSidebarCollapsed();
+                    }}
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Collapse Sidebar</TooltipContent>
+              </Tooltip>
 
             {/* Mobile: Close button */}
             <Button
@@ -1186,7 +940,7 @@ export function Sidebar() {
         <Separator />
 
         {/* Notes and folders list */}
-        <ScrollArea className={cn("flex-1", isTouchDragging && "touch-none")} onClick={(e) => {
+        <ScrollArea className="flex-1" onClick={(e) => {
           // Clear selection if clicking on empty area
           const target = e.target as HTMLElement;
           // Check if click is on ScrollArea viewport or the container div (not on items)
@@ -1195,57 +949,69 @@ export function Sidebar() {
             clearSelection();
           }
         }}>
-          <div
-            ref={sidebarContainerRef}
-            className={cn(
-              "p-2 min-h-full sidebar-container",
-              dropTargetFolderId === "root" && draggedNoteId && "bg-primary/10",
-              isTouchDragging && "touch-none" // Prevent scrolling while dragging
-            )}
-            onDragOver={(e) => handleDragOver(e, "root")}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, "root")}
+          <RootDropZone
+            isActive={overId === "sidebar-root" && activeDragItem !== null}
           >
-            {/* Creating new item input - shown at root level when no folder is selected */}
-            {creatingItem && !selectedFolderId && (
-              <div className="space-y-1">
-                <div
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
-                  style={{ paddingLeft: "28px" }}
-                >
-                  {creatingItem.type === "folder" ? (
-                    <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  ) : creatingItem.type === "calculator" ? (
-                    <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <Input
-                    ref={editInputRef}
-                    value={creatingItem.name}
-                    onChange={(e) => {
-                      setCreatingItem((prev) =>
-                        prev ? { ...prev, name: e.target.value } : null
-                      );
-                      setInlineError(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        saveCreatingItem();
-                      } else if (e.key === "Escape") {
-                        cancelCreatingItem();
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const success = saveCreatingItem();
-                      if (!success) {
-                        // Refocus on error
-                        e.target.focus();
-                      }
-                    }}
-                    className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
-                    onClick={(e) => e.stopPropagation()}
-                  />
+            <div
+              ref={sidebarContainerRef}
+              className="p-2 min-h-full sidebar-container"
+            >
+              <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
+                {/* Show "Move to Root" drop zone when dragging an item that's inside a folder */}
+                {activeDragItem && activeDragItem.type === "note" && (
+                  <div
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-lg border-2 border-dashed py-2 mb-2 text-sm transition-colors",
+                      overId === "sidebar-root"
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-muted-foreground/30 text-muted-foreground"
+                    )}
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>Drop here to move to root level</span>
+                  </div>
+                )}
+                
+                {/* Creating new item input - shown at root level when no folder is selected */}
+                {creatingItem && !selectedFolderId && (
+                  <div className="space-y-1">
+                    <div
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-accent"
+                      style={{ paddingLeft: "28px" }}
+                    >
+                      {creatingItem.type === "folder" ? (
+                        <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : creatingItem.type === "calculator" ? (
+                        <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <Input
+                        ref={editInputRef}
+                        value={creatingItem.name}
+                        onChange={(e) => {
+                          setCreatingItem((prev) =>
+                            prev ? { ...prev, name: e.target.value } : null
+                          );
+                          setInlineError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveCreatingItem();
+                          } else if (e.key === "Escape") {
+                            cancelCreatingItem();
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const success = saveCreatingItem();
+                          if (!success) {
+                            // Refocus on error
+                            e.target.focus();
+                          }
+                        }}
+                        className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
+                        onClick={(e) => e.stopPropagation()}
+                      />
                 </div>
                 {inlineError && (
                   <p className="text-xs text-destructive px-2" style={{ paddingLeft: "28px" }}>
@@ -1261,30 +1027,62 @@ export function Sidebar() {
             {/* Root notes (without folder) */}
             {rootNotes.map((note) => renderNote(note))}
 
-            {/* Empty state */}
+            {/* Empty state / root drop zone indicator when dragging */}
             {rootFolders.length === 0 && rootNotes.length === 0 && !creatingItem && (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <FileText className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-sm text-muted-foreground">
-                  No notes yet
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Click + to create one
-                </p>
+              <div 
+                className={cn(
+                  "flex flex-col items-center justify-center py-8 text-center rounded-lg border-2 border-dashed transition-colors",
+                  activeDragItem 
+                    ? overId === "sidebar-root"
+                      ? "border-primary bg-primary/10"
+                      : "border-muted-foreground/30"
+                    : "border-transparent"
+                )}
+              >
+                {activeDragItem ? (
+                  <>
+                    <FileText className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Drop here to move to root
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      No notes yet
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Click + to create one
+                    </p>
+                  </>
+                )}
               </div>
             )}
-
-          </div>
+              </SortableContext>
+            </div>
+          </RootDropZone>
         </ScrollArea>
-      </aside>
-
-      {/* Touch drag indicator */}
-      {isTouchDragging && draggedNoteId && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2">
-          <span>Drop on folder to move</span>
-        </div>
-      )}
-
+        </aside>
+        </TooltipProvider>
+        {/* Drag overlay - renders at mouse/touch position */}
+        <DragOverlay dropAnimation={null}>
+          {activeDragItem ? (
+            <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-background border shadow-lg cursor-grabbing">
+              <GripVertical className="h-3 w-3 text-muted-foreground" />
+              {activeDragItem.isPinned && <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />}
+              {activeDragItem.type === "folder" ? (
+                <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+              ) : activeDragItem.noteType === "calculator" ? (
+                <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+              <span className="flex-1 truncate">{activeDragItem.title}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       {/* Delete confirmation dialog */}
       <AlertDialog
         open={deleteDialog.open}
@@ -1338,6 +1136,309 @@ export function Sidebar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </TooltipProvider>
+    </>
+  );
+}
+
+// Droppable root zone component
+function RootDropZone({ children, isActive }: { children: React.ReactNode; isActive: boolean }) {
+  const { setNodeRef } = useDroppable({
+    id: "sidebar-root",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "min-h-full",
+        isActive && "bg-primary/10"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Droppable folder item component
+interface DroppableFolderItemProps {
+  folder: {
+    id: string;
+    name: string;
+  };
+  depth: number;
+  isExpanded: boolean;
+  isSelected: boolean;
+  isDropTarget: boolean;
+  isEditing: boolean;
+  editingName: string;
+  inlineError: string | null;
+  hasChildren: boolean;
+  children?: React.ReactNode;
+  onSelect: () => void;
+  onStartEdit: (e?: React.MouseEvent | React.TouchEvent) => void;
+  onDelete: (e?: React.MouseEvent | React.TouchEvent) => void;
+  onEditingNameChange: (name: string) => void;
+  onSaveEdit: () => boolean;
+  onCancelEdit: () => void;
+  editInputRef: (node: HTMLInputElement | null) => void;
+}
+
+function DroppableFolderItem({
+  folder,
+  depth,
+  isExpanded,
+  isSelected,
+  isDropTarget,
+  isEditing,
+  editingName,
+  inlineError,
+  hasChildren,
+  children,
+  onSelect,
+  onStartEdit,
+  onDelete,
+  onEditingNameChange,
+  onSaveEdit,
+  onCancelEdit,
+  editInputRef,
+}: DroppableFolderItemProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `folder-drop-${folder.id}`,
+    data: { type: "folder", folderId: folder.id },
+  });
+
+  return (
+    <div ref={setNodeRef}>
+      <div
+        className={cn(
+          "group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent",
+          isSelected && "bg-accent",
+          (isDropTarget || isOver) && "bg-primary/20 ring-2 ring-primary ring-inset"
+        )}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+        onClick={onSelect}
+      >
+        {hasChildren ? (
+          isExpanded ? (
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )
+        ) : (
+          <span className="w-4" />
+        )}
+        <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+        {isEditing ? (
+          <Input
+            ref={editInputRef}
+            value={editingName}
+            onChange={(e) => onEditingNameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onSaveEdit();
+              } else if (e.key === "Escape") {
+                onCancelEdit();
+              }
+            }}
+            onBlur={(e) => {
+              const success = onSaveEdit();
+              if (!success) {
+                e.target.focus();
+              }
+            }}
+            className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="flex-1 truncate">{folder.name}</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartEdit(e);
+          }}
+        >
+          <Pencil className="h-3 w-3 text-muted-foreground" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(e);
+          }}
+        >
+          <Trash2 className="h-3 w-3 text-muted-foreground" />
+        </Button>
+      </div>
+
+      {/* Inline error for folder rename */}
+      {isEditing && inlineError && (
+        <p
+          className="text-xs text-destructive px-2 py-1"
+          style={{ paddingLeft: `${depth * 12 + 28}px` }}
+        >
+          {inlineError}
+        </p>
+      )}
+
+      {children}
+    </div>
+  );
+}
+
+// Sortable note item component
+interface SortableNoteItemProps {
+  note: {
+    id: string;
+    title: string;
+    noteType: string | null;
+    isPinned: number | null;
+    folderId: string | null;
+  };
+  depth: number;
+  isSelected: boolean;
+  isDragging: boolean;
+  isEditing: boolean;
+  editingName: string;
+  inlineError: string | null;
+  onSelect: () => void;
+  onStartEdit: (e?: React.MouseEvent | React.TouchEvent) => void;
+  onDelete: (e?: React.MouseEvent | React.TouchEvent) => void;
+  onEditingNameChange: (name: string) => void;
+  onSaveEdit: () => boolean;
+  onCancelEdit: () => void;
+  editInputRef: (node: HTMLInputElement | null) => void;
+}
+
+function SortableNoteItem({
+  note,
+  depth,
+  isSelected,
+  isDragging,
+  isEditing,
+  editingName,
+  inlineError,
+  onSelect,
+  onStartEdit,
+  onDelete,
+  onEditingNameChange,
+  onSaveEdit,
+  onCancelEdit,
+  editInputRef,
+}: SortableNoteItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({
+    id: note.id,
+    data: {
+      type: "note",
+      itemType: note.noteType || "note",
+      folderId: note.folderId,
+    },
+    disabled: isEditing,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    touchAction: "none",
+  };
+
+  // Use local sqliteTrue value (1)
+  const isPinned = note.isPinned === 1;
+
+  return (
+    <React.Fragment>
+      <div
+        ref={setNodeRef}
+        style={{ ...style, paddingLeft: `${depth * 12 + 28}px` }}
+        className={cn(
+          "group flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent active:bg-accent select-none",
+          isSelected && "bg-accent",
+          (isDragging || isSortableDragging) && "opacity-50 z-50"
+        )}
+        onClick={onSelect}
+        {...attributes}
+        {...listeners}
+      >
+        {/* Pin icon - always visible when note is pinned, before note icon */}
+        {isPinned && (
+          <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />
+        )}
+        {note.noteType === "calculator" ? (
+          <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        {isEditing ? (
+          <Input
+            ref={editInputRef}
+            value={editingName}
+            onChange={(e) => onEditingNameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                onSaveEdit();
+              } else if (e.key === "Escape") {
+                onCancelEdit();
+              }
+            }}
+            onBlur={(e) => {
+              const success = onSaveEdit();
+              if (!success) {
+                e.target.focus();
+              }
+            }}
+            className={cn("h-6 flex-1 text-sm", inlineError && "border-destructive")}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="flex-1 truncate pointer-events-none">{note.title}</span>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartEdit(e);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Pencil className="h-3 w-3 text-muted-foreground" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(e);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Trash2 className="h-3 w-3 text-muted-foreground" />
+        </Button>
+      </div>
+      {/* Inline error for note rename */}
+      {isEditing && inlineError && (
+        <p
+          className="text-xs text-destructive px-2 py-1"
+          style={{ paddingLeft: `${depth * 12 + 28}px` }}
+        >
+          {inlineError}
+        </p>
+      )}
+    </React.Fragment>
   );
 }

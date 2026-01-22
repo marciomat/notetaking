@@ -22,6 +22,7 @@ interface TabStore {
   removeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   renameTab: (id: string, name: string) => void;
+  reorderTabs: (fromIndex: number, toIndex: number) => void;
   markTabSetupComplete: (id: string) => void;
   markTabOnboardingComplete: (id: string) => void;
   refreshTab: (id: string) => void;
@@ -109,6 +110,15 @@ export const useTabStore = create<TabStore>()(
             t.id === id ? { ...t, name } : t
           ),
         }));
+      },
+
+      reorderTabs: (fromIndex: number, toIndex: number) => {
+        set((state) => {
+          const newTabs = [...state.tabs];
+          const [movedTab] = newTabs.splice(fromIndex, 1);
+          newTabs.splice(toIndex, 0, movedTab);
+          return { tabs: newTabs };
+        });
       },
 
       markTabSetupComplete: (id: string) => {
