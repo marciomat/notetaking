@@ -22,6 +22,8 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
+  pointerWithin,
+  rectIntersection,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -32,6 +34,7 @@ import {
   type DragEndEvent,
   type DragOverEvent,
   type UniqueIdentifier,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -227,6 +230,39 @@ export function Sidebar() {
         !tagFilter.includes(tag)
     );
   }, [tagSearchQuery, allTags, tagFilter]);
+
+  // Custom collision detection that prioritizes folder drop zones over other items
+  // This allows dropping into nested folders even when hovering over their contents
+  const customCollisionDetection: CollisionDetection = useCallback((args) => {
+    // First, get collisions using pointerWithin (checks what's directly under pointer)
+    const pointerCollisions = pointerWithin(args);
+    
+    // If we have collisions, prioritize folder drop zones
+    if (pointerCollisions.length > 0) {
+      // Find folder drop zones (they have ids like "folder-drop-xxx")
+      const folderDropZones = pointerCollisions.filter(
+        (collision) => String(collision.id).startsWith("folder-drop-")
+      );
+      
+      // If hovering over a folder drop zone, use it
+      if (folderDropZones.length > 0) {
+        return folderDropZones;
+      }
+      
+      // Check for sidebar-root
+      const rootZone = pointerCollisions.filter(
+        (collision) => collision.id === "sidebar-root"
+      );
+      if (rootZone.length > 0 && pointerCollisions.length === 1) {
+        return rootZone;
+      }
+      
+      return pointerCollisions;
+    }
+    
+    // Fall back to closestCenter for keyboard navigation
+    return closestCenter(args);
+  }, []);
 
   // Configure dnd-kit sensors for both desktop and mobile
   // PointerSensor: 8px distance before activating (prevents accidental drags)
@@ -758,19 +794,21 @@ export function Sidebar() {
   };
 
   // Get all item IDs for SortableContext
-  // Include sidebar-root so it's always considered for drops even when empty
+  // Include sidebar-root and ALL notes/folders so drag works consistently everywhere
   const allItemIds = useMemo(() => {
     const ids: string[] = ["sidebar-root"];
-    rootFolders.forEach((f) => ids.push(f.id));
-    rootNotes.forEach((n) => ids.push(n.id));
+    // Include all folders
+    folders.forEach((f) => ids.push(f.id));
+    // Include all notes
+    notes.forEach((n) => ids.push(n.id));
     return ids;
-  }, [rootFolders, rootNotes]);
+  }, [folders, notes]);
 
   return (
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={customCollisionDetection}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
