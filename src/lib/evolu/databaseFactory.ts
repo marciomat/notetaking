@@ -17,10 +17,10 @@ function createEvoluInstance(tabId: string) {
   const instance = Evolu.createEvolu(evoluReactWebDeps)(Schema, {
     name: Evolu.SimpleName.orThrow(dbName),
     transports: [
-      // Primary relay - contains all historical data (1MB quota limit per owner)
+      // Primary relay - free tier with 1MB quota limit per owner
       { type: "WebSocket", url: "wss://free.evoluhq.com" },
-      // Backup relay - higher quota but doesn't have old data yet
-      { type: "WebSocket", url: "wss://relay-production-fb15.up.railway.app/" },
+      { type: "WebSocket", url: "wss://relay.fred.education" },
+      { type: "WebSocket", url: "wss://relay-production-fb15.up.railway.app" },
     ],
     // Enable logging to debug sync issues
     enableLogging: true,

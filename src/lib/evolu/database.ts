@@ -10,7 +10,8 @@ export const evolu = Evolu.createEvolu(evoluReactWebDeps)(Schema, {
   name: Evolu.SimpleName.orThrow("numpad"),
   transports: [
     { type: "WebSocket", url: "wss://free.evoluhq.com" },
-    { type: "WebSocket", url: "wss://relay-production-fb15.up.railway.app/" },
+    { type: "WebSocket", url: "wss://relay.fred.education" },
+    { type: "WebSocket", url: "wss://relay-production-fb15.up.railway.app" },
   ],
 });
 
