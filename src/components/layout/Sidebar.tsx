@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   FolderPlus,
   ChevronRight,
@@ -75,6 +76,7 @@ interface ActiveDragItem {
   title: string;
   noteType?: string;
   isPinned?: boolean;
+  folderId?: string | null; // null means item is at root level
 }
 
 export function Sidebar() {
@@ -123,6 +125,22 @@ export function Sidebar() {
   const [activeDragItem, setActiveDragItem] = useState<ActiveDragItem | null>(null);
   const [overId, setOverId] = useState<UniqueIdentifier | null>(null);
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Track mount state for portal (SSR safety)
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  // Set grabbing cursor on body when dragging for consistent UX
+  useEffect(() => {
+    if (activeDragItem) {
+      document.body.style.cursor = 'grabbing';
+      return () => {
+        document.body.style.cursor = '';
+      };
+    }
+  }, [activeDragItem]);
 
   // State for creating new items - shows input immediately before database insert
   const [creatingItem, setCreatingItem] = useState<{
@@ -484,6 +502,7 @@ export function Sidebar() {
           title: note.title,
           noteType: note.noteType ?? "note",
           isPinned: note.isPinned === Evolu.sqliteTrue,
+          folderId: note.folderId,
         });
       }
     } else if (type === "folder") {
@@ -957,8 +976,8 @@ export function Sidebar() {
               className="p-2 min-h-full sidebar-container"
             >
               <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
-                {/* Show "Move to Root" drop zone when dragging an item that's inside a folder */}
-                {activeDragItem && activeDragItem.type === "note" && (
+                {/* Show "Move to Root" drop zone only when dragging an item that's inside a folder */}
+                {activeDragItem && activeDragItem.type === "note" && activeDragItem.folderId && (
                   <div
                     className={cn(
                       "flex items-center justify-center gap-2 rounded-lg border-2 border-dashed py-2 mb-2 text-sm transition-colors",
@@ -1065,23 +1084,26 @@ export function Sidebar() {
         </ScrollArea>
         </aside>
         </TooltipProvider>
-        {/* Drag overlay - renders at mouse/touch position */}
-        <DragOverlay dropAnimation={null}>
-          {activeDragItem ? (
-            <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-background border shadow-lg cursor-grabbing">
-              <GripVertical className="h-3 w-3 text-muted-foreground" />
-              {activeDragItem.isPinned && <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />}
-              {activeDragItem.type === "folder" ? (
-                <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-              ) : activeDragItem.noteType === "calculator" ? (
-                <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className="flex-1 truncate">{activeDragItem.title}</span>
-            </div>
-          ) : null}
-        </DragOverlay>
+        {/* Drag overlay - use portal to render at viewport level for correct positioning */}
+        {isMounted && createPortal(
+          <DragOverlay dropAnimation={null}>
+            {activeDragItem ? (
+              <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-background border shadow-lg cursor-grabbing">
+                <GripVertical className="h-3 w-3 text-muted-foreground" />
+                {activeDragItem.isPinned && <Pin className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                {activeDragItem.type === "folder" ? (
+                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : activeDragItem.noteType === "calculator" ? (
+                  <Calculator className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="flex-1 truncate">{activeDragItem.title}</span>
+              </div>
+            ) : null}
+          </DragOverlay>,
+          document.body
+        )}
       </DndContext>
       {/* Delete confirmation dialog */}
       <AlertDialog
