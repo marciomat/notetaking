@@ -1,7 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import type { NoteId, FolderId } from "@/lib/evolu";
+
+// Use simple string IDs instead of Evolu branded types
+type NoteId = string;
+type FolderId = string;
 
 interface NoteStore {
   selectedNoteId: NoteId | null;

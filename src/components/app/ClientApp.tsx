@@ -1,15 +1,20 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { JazzProvider } from "@/components/providers/JazzProvider";
 
 // Dynamically import the app component with SSR disabled
-// Evolu uses browser-only APIs (IndexedDB, WebWorker) that can't run on the server
-const NotetakingApp = dynamic(
+// Jazz uses browser-only APIs (IndexedDB, WebSocket) that can't run on the server
+const JazzNotetakingApp = dynamic(
   () =>
-    import("@/components/app/NotetakingApp").then((mod) => mod.NotetakingApp),
+    import("@/components/app/JazzNotetakingApp").then((mod) => mod.JazzNotetakingApp),
   { ssr: false },
 );
 
 export function ClientApp() {
-  return <NotetakingApp />;
+  return (
+    <JazzProvider>
+      <JazzNotetakingApp />
+    </JazzProvider>
+  );
 }
