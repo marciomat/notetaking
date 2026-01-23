@@ -446,8 +446,9 @@ export function Sidebar() {
     }
 
     // Check for duplicate names
+    const typedFolderId = selectedFolderId as FolderId | null;
     if (creatingItem.type === "note" || creatingItem.type === "calculator") {
-      if (noteNameExistsInFolder(nameToUse, selectedFolderId)) {
+      if (noteNameExistsInFolder(nameToUse, typedFolderId)) {
         setInlineError(`"${nameToUse}" already exists in this folder`);
         return false;
       }
@@ -457,7 +458,7 @@ export function Sidebar() {
       const result = insert("note", {
         title: parsedName.value,
         content: null,
-        folderId: selectedFolderId,
+        folderId: typedFolderId,
         viewMode: editMode.ok ? editMode.value : null,
         noteType: noteType.ok ? noteType.value : null,
       });
@@ -465,14 +466,14 @@ export function Sidebar() {
         setSelectedNoteId(result.value.id);
       }
     } else {
-      if (folderNameExistsInParent(nameToUse, selectedFolderId)) {
+      if (folderNameExistsInParent(nameToUse, typedFolderId)) {
         setInlineError(`"${nameToUse}" already exists here`);
         return false;
       }
 
       insert("folder", {
         name: parsedName.value,
-        parentId: selectedFolderId,
+        parentId: typedFolderId,
       });
     }
 
