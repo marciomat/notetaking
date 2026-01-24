@@ -13,9 +13,13 @@ export const MarkdownContent = co.map({
 });
 export type MarkdownContent = co.loaded<typeof MarkdownContent>;
 
-// Simple text content for calculator notes
+// CoList for calculator lines - enables real-time sync
+export const CalculatorLineList = co.list(z.string());
+export type CalculatorLineList = co.loaded<typeof CalculatorLineList>;
+
+// Simple text content for calculator notes using CoList for real-time sync
 export const CalculatorContent = co.map({
-  lines: z.array(z.string()),
+  lines: CalculatorLineList,
 });
 export type CalculatorContent = co.loaded<typeof CalculatorContent>;
 

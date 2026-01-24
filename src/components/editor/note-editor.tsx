@@ -144,7 +144,17 @@ export function NoteEditor({
       <CardContent className="flex-1 overflow-auto p-0">
         {isCalculator ? (
           <CalculatorEditor
-            lines={(note as CalculatorNote).content?.lines ?? [""]}
+            lines={(() => {
+              const calcNote = note as CalculatorNote;
+              const linesList = calcNote.content?.lines;
+              if (!linesList || linesList.length === 0) return [""];
+              // Convert CoList to array
+              const arr: string[] = [];
+              for (let i = 0; i < linesList.length; i++) {
+                arr.push(linesList[i] ?? "");
+              }
+              return arr.length > 0 ? arr : [""];
+            })()}
             onUpdate={(lines) => onUpdateContent({ lines })}
           />
         ) : (

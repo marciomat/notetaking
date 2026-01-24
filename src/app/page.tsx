@@ -13,6 +13,7 @@ import {
   FolderItemList,
   MarkdownContent,
   CalculatorContent,
+  CalculatorLineList,
   Note,
 } from "@/lib/schema";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -34,8 +35,8 @@ export default function Home() {
       root: {
         workspace: {
           rootChildren: { $each: true },
-          allPlainNotes: { $each: true },
-          allCalculatorNotes: { $each: true },
+          allPlainNotes: { $each: { content: true } },
+          allCalculatorNotes: { $each: { content: { lines: true } } },
           allFolders: { $each: { children: { $each: true } } },
         },
       },
@@ -93,7 +94,8 @@ export default function Home() {
       const title = name || defaultTitle;
 
       if (flavour === "calculator") {
-        const content = CalculatorContent.create({ lines: [""] }, { owner: group });
+        const linesList = CalculatorLineList.create([""], { owner: group });
+        const content = CalculatorContent.create({ lines: linesList }, { owner: group });
         note = CalculatorNote.create(
           {
             flavour: "calculator",
@@ -431,7 +433,7 @@ export default function Home() {
 
       if (selectedNote.flavour === "calculator") {
         const calcNote = selectedNote as CalculatorNote;
-        if (calcNote.content) {
+        if (calcNote.content && calcNote.content.lines) {
           const newLines = (content.lines as string[]) ?? [""];
           const existingLines = calcNote.content.lines;
           
