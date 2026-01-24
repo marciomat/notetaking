@@ -31,6 +31,7 @@ export function AuthModal() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -134,37 +135,53 @@ export function AuthModal() {
   }, [inputPassphrase, logIn]);
 
   const startScanning = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-      });
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-            .then(() => {
-              setScanning(true);
-            })
-            .catch((err) => {
-              console.error("Error playing video:", err);
-              toast.error("Failed to start camera");
-            });
-        };
-      }
-    } catch (error) {
-      console.error("Camera error:", error);
-      toast.error("Failed to access camera");
-    }
+    // First show the video UI
+    setScanning(true);
+    setCameraReady(false);
   }, []);
+
+  // Effect to initialize camera once video element is mounted
+  useEffect(() => {
+    if (!scanning || cameraReady) return;
+
+    const initCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+        });
+        streamRef.current = stream;
+        
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play()
+              .then(() => {
+                setCameraReady(true);
+              })
+              .catch((err) => {
+                console.error("Error playing video:", err);
+                toast.error("Failed to start camera");
+                setScanning(false);
+              });
+          };
+        }
+      } catch (error) {
+        console.error("Camera error:", error);
+        toast.error("Failed to access camera");
+        setScanning(false);
+      }
+    };
+
+    initCamera();
+  }, [scanning, cameraReady]);
 
   const stopScanning = useCallback(() => {
     setScanning(false);
+    setCameraReady(false);
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
@@ -220,10 +237,10 @@ export function AuthModal() {
   }, [stopScanning]);
 
   useEffect(() => {
-    if (scanning) {
+    if (cameraReady) {
       startScanFrame();
     }
-  }, [scanning, startScanFrame]);
+  }, [cameraReady, startScanFrame]);
 
   useEffect(() => {
     return () => {
@@ -284,13 +301,17 @@ export function AuthModal() {
             {scanning ? (
               <div className="space-y-4">
                 <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
+                  {!cameraReady && (
+                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                      <span className="animate-pulse">Starting camera...</span>
+                    </div>
+                  )}
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
                     className="w-full h-full object-cover"
-                    style={{ transform: 'scaleX(-1)' }}
                   />
                   <div className="absolute inset-0 border-2 border-primary/50 m-8 rounded pointer-events-none" />
                   <Button
