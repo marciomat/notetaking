@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useAccount, useIsAuthenticated } from "jazz-react";
 import { Group } from "jazz-tools";
 import {
@@ -47,9 +47,32 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasRestoredLastNote, setHasRestoredLastNote] = useState(false);
   const treeRef = useRef<NoteTreeRef>(null);
 
   const workspace = me?.root?.workspace;
+
+  // Restore last viewed note from localStorage on initial load
+  useEffect(() => {
+    if (workspace && !hasRestoredLastNote) {
+      const lastNoteId = localStorage.getItem("numpad:lastViewedNoteId");
+      if (lastNoteId) {
+        // Verify the note still exists
+        const note = findNote(workspace, lastNoteId);
+        if (note) {
+          setSelectedNoteId(lastNoteId);
+        }
+      }
+      setHasRestoredLastNote(true);
+    }
+  }, [workspace, hasRestoredLastNote]);
+
+  // Save selected note to localStorage when it changes
+  useEffect(() => {
+    if (selectedNoteId && hasRestoredLastNote) {
+      localStorage.setItem("numpad:lastViewedNoteId", selectedNoteId);
+    }
+  }, [selectedNoteId, hasRestoredLastNote]);
 
   // Get all tags from workspace
   const allTags = useMemo(() => getAllTags(workspace), [workspace]);
