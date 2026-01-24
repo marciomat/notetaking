@@ -30,6 +30,7 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
   const [scannedPhrase, setScannedPhrase] = useState("");
   const [manualPhrase, setManualPhrase] = useState("");
   const [isRestoring, setIsRestoring] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -67,7 +68,11 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
     setScanning(false);
+    setCameraReady(false);
   }, []);
 
   const scanFrame = useCallback(() => {
@@ -106,32 +111,52 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
   }, [stopScanning]);
 
   const startScanning = async () => {
+    // Check if camera is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error("Camera not available on this device");
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-      });
+      let stream: MediaStream;
+
+      // Try with rear camera first, then fallback to any camera
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+        });
+      } catch {
+        // Fallback: try without facingMode constraint
+        console.log("Rear camera failed, trying any camera...");
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+      }
+
+      // Store the stream
       streamRef.current = stream;
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Wait for video metadata to load before playing
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().then(() => {
-            setScanning(true);
-            animationRef.current = requestAnimationFrame(scanFrame);
-          }).catch((err) => {
-            console.error("Error playing video:", err);
-            toast.error("Failed to start camera preview");
-          });
-        };
-      }
+      // Show the scanning UI - the video element will be rendered
+      setScanning(true);
+      setCameraReady(false);
     } catch (error) {
-      console.error("Camera access denied:", error);
-      toast.error("Camera access denied. Please allow camera access to scan QR codes.");
+      console.error("Camera error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      const errorName = error instanceof Error ? error.name : "";
+
+      if (errorName === "NotAllowedError" || errorMsg.includes("Permission") || errorMsg.includes("NotAllowed")) {
+        toast.error("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (errorName === "NotFoundError" || errorMsg.includes("NotFound")) {
+        toast.error("No camera found on this device");
+      } else if (errorName === "NotReadableError" || errorMsg.includes("NotReadable")) {
+        toast.error("Camera is in use by another application");
+      } else {
+        toast.error(`Camera error: ${errorMsg}`);
+      }
     }
   };
 
@@ -161,6 +186,42 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
       setIsRestoring(false);
     }
   };
+
+  // Attach stream to video element once it's rendered
+  useEffect(() => {
+    if (scanning && streamRef.current && videoRef.current && !cameraReady) {
+      const video = videoRef.current;
+      video.srcObject = streamRef.current;
+
+      const handleCanPlay = () => {
+        video.play()
+          .then(() => setCameraReady(true))
+          .catch((err) => {
+            console.error("Failed to play video:", err);
+            toast.error("Failed to start camera preview");
+            stopScanning();
+          });
+      };
+
+      video.addEventListener("canplay", handleCanPlay);
+
+      // Also try to play immediately in case canplay already fired
+      if (video.readyState >= 3) {
+        handleCanPlay();
+      }
+
+      return () => {
+        video.removeEventListener("canplay", handleCanPlay);
+      };
+    }
+  }, [scanning, cameraReady, stopScanning]);
+
+  // Start scanning frames once camera is ready
+  useEffect(() => {
+    if (cameraReady) {
+      animationRef.current = requestAnimationFrame(scanFrame);
+    }
+  }, [cameraReady, scanFrame]);
 
   // Cleanup on unmount or close
   useEffect(() => {
@@ -255,13 +316,19 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
                 <div className="aspect-square bg-muted rounded-lg overflow-hidden relative">
                   {scanning ? (
                     <>
+                      {!cameraReady && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
+                          <span className="text-white animate-pulse">Starting camera...</span>
+                        </div>
+                      )}
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                       <video
                         ref={videoRef}
                         autoPlay
                         playsInline
                         muted
+                        webkit-playsinline="true"
                         className="w-full h-full object-cover"
-                        style={{ transform: 'scaleX(-1)' }} // Mirror for better UX
                       />
                       <div className="absolute inset-0 border-2 border-primary/50 m-8 rounded pointer-events-none" />
                     </>

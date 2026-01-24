@@ -156,30 +156,46 @@ export function AuthModal() {
       toast.error("Camera not available on this device");
       return;
     }
-    
+
     try {
-      // Request camera FIRST before showing UI
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "environment",
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
-      });
-      
+      let stream: MediaStream;
+
+      // Try with rear camera first, then fallback to any camera
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+        });
+      } catch {
+        // Fallback: try without facingMode constraint
+        console.log("Rear camera failed, trying any camera...");
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+        });
+      }
+
       // Store the stream
       streamRef.current = stream;
-      
+
       // Now show the scanning UI - the video element will be rendered
       setScanning(true);
       setCameraReady(false);
     } catch (error) {
       console.error("Camera error:", error);
       const errorMsg = error instanceof Error ? error.message : "Unknown error";
-      if (errorMsg.includes("Permission") || errorMsg.includes("NotAllowed")) {
-        toast.error("Camera permission denied");
-      } else if (errorMsg.includes("NotFound")) {
-        toast.error("No camera found");
+      const errorName = error instanceof Error ? error.name : "";
+
+      if (errorName === "NotAllowedError" || errorMsg.includes("Permission") || errorMsg.includes("NotAllowed")) {
+        toast.error("Camera permission denied. Please allow camera access in your browser settings.");
+      } else if (errorName === "NotFoundError" || errorMsg.includes("NotFound")) {
+        toast.error("No camera found on this device");
+      } else if (errorName === "NotReadableError" || errorMsg.includes("NotReadable")) {
+        toast.error("Camera is in use by another application");
+      } else if (errorName === "OverconstrainedError") {
+        toast.error("Camera does not meet requirements");
       } else {
         toast.error(`Camera error: ${errorMsg}`);
       }
@@ -332,6 +348,7 @@ export function AuthModal() {
                     autoPlay
                     playsInline
                     muted
+                    webkit-playsinline="true"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 border-2 border-primary/50 m-8 rounded pointer-events-none" />
