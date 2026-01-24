@@ -13,9 +13,12 @@ import {
   CheckSquare,
   Heading1,
   Heading2,
+  Heading3,
   Quote,
   Undo,
   Redo,
+  CodeSquare,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -100,6 +103,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         <Heading2 className="h-4 w-4" />
       </ToolbarButton>
 
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        isActive={editor.isActive("heading", { level: 3 })}
+        title="Heading 3"
+      >
+        <Heading3 className="h-4 w-4" />
+      </ToolbarButton>
+
       <Separator orientation="vertical" className="mx-1 h-6" />
 
       <ToolbarButton
@@ -132,6 +143,21 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         title="Quote"
       >
         <Quote className="h-4 w-4" />
+      </ToolbarButton>
+
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        isActive={editor.isActive("codeBlock")}
+        title="Code Block"
+      >
+        <CodeSquare className="h-4 w-4" />
+      </ToolbarButton>
+
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        title="Horizontal Rule"
+      >
+        <Minus className="h-4 w-4" />
       </ToolbarButton>
 
       <Separator orientation="vertical" className="mx-1 h-6" />

@@ -91,3 +91,203 @@ textarea:focus {
     top: calc(1rem + env(safe-area-inset-top));
   }
 }
+
+/* TipTap Editor - Obsidian-like styling */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
+
+/* Headings with proper hierarchy */
+.ProseMirror h1 {
+  @apply text-3xl font-bold mt-6 mb-4 text-foreground;
+}
+
+.ProseMirror h2 {
+  @apply text-2xl font-bold mt-5 mb-3 text-foreground;
+}
+
+.ProseMirror h3 {
+  @apply text-xl font-semibold mt-4 mb-2 text-foreground;
+}
+
+.ProseMirror h4 {
+  @apply text-lg font-semibold mt-3 mb-2 text-foreground;
+}
+
+.ProseMirror h5 {
+  @apply text-base font-semibold mt-2 mb-1 text-foreground;
+}
+
+.ProseMirror h6 {
+  @apply text-sm font-semibold mt-2 mb-1 text-muted-foreground;
+}
+
+/* Lists */
+.ProseMirror ul,
+.ProseMirror ol {
+  @apply pl-6 my-3;
+}
+
+.ProseMirror ul {
+  @apply list-disc;
+}
+
+.ProseMirror ol {
+  @apply list-decimal;
+}
+
+.ProseMirror li {
+  @apply my-1;
+}
+
+.ProseMirror li p {
+  @apply my-0;
+}
+
+/* Task lists */
+.ProseMirror ul[data-type="taskList"] {
+  @apply list-none pl-0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  @apply flex items-center gap-2;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
+  @apply w-4 h-4 rounded border-muted-foreground/50 bg-transparent cursor-pointer;
+}
+
+/* Code blocks with syntax highlighting */
+.ProseMirror pre {
+  @apply bg-muted/50 rounded-lg p-4 my-4 overflow-x-auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ProseMirror pre code {
+  @apply bg-transparent p-0 text-sm;
+  color: inherit;
+}
+
+/* Inline code */
+.ProseMirror code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  color: hsl(var(--foreground));
+}
+
+/* Blockquotes */
+.ProseMirror blockquote {
+  @apply border-l-4 border-primary/50 pl-4 py-2 my-4 italic text-muted-foreground;
+}
+
+/* Horizontal rule */
+.ProseMirror hr {
+  @apply my-6 border-muted-foreground/20;
+}
+
+/* Links */
+.ProseMirror a {
+  @apply text-primary underline underline-offset-2 decoration-primary/50 hover:decoration-primary transition-colors;
+}
+
+/* Syntax highlighting for code blocks */
+.ProseMirror .hljs-comment,
+.ProseMirror .hljs-quote {
+  @apply text-muted-foreground italic;
+}
+
+.ProseMirror .hljs-variable,
+.ProseMirror .hljs-template-variable,
+.ProseMirror .hljs-attribute,
+.ProseMirror .hljs-tag,
+.ProseMirror .hljs-regexp,
+.ProseMirror .hljs-link {
+  color: #f97316; /* orange */
+}
+
+.ProseMirror .hljs-number,
+.ProseMirror .hljs-literal,
+.ProseMirror .hljs-built_in,
+.ProseMirror .hljs-builtin-name {
+  color: #a78bfa; /* purple */
+}
+
+.ProseMirror .hljs-string,
+.ProseMirror .hljs-doctag {
+  color: #34d399; /* green */
+}
+
+.ProseMirror .hljs-title,
+.ProseMirror .hljs-section,
+.ProseMirror .hljs-selector-id {
+  color: #60a5fa; /* blue */
+}
+
+.ProseMirror .hljs-keyword,
+.ProseMirror .hljs-selector-tag,
+.ProseMirror .hljs-type,
+.ProseMirror .hljs-name {
+  color: #ec4899; /* pink */
+}
+
+.ProseMirror .hljs-meta {
+  color: #94a3b8; /* slate */
+}
+
+.ProseMirror .hljs-emphasis {
+  @apply italic;
+}
+
+.ProseMirror .hljs-strong {
+  @apply font-bold;
+}
+
+/* Markdown formatting shortcuts - show as you type */
+.ProseMirror strong {
+  @apply font-bold text-foreground;
+}
+
+.ProseMirror em {
+  @apply italic;
+}
+
+/* Better paragraph spacing */
+.ProseMirror p {
+  @apply my-3;
+}
+
+.ProseMirror p:first-child {
+  @apply mt-0;
+}
+
+.ProseMirror p:last-child {
+  @apply mb-0;
+}
+
+/* Table support (if needed in future) */
+.ProseMirror table {
+  @apply border-collapse my-4 w-full;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  @apply border border-muted px-4 py-2;
+}
+
+.ProseMirror th {
+  @apply bg-muted font-semibold;
+}
+
