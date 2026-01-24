@@ -164,7 +164,7 @@ export default function Home() {
       // Check depth limit
       if (!canCreateFolderAt(parentId, rawTreeData)) {
         toast.error(getDepthLimitMessage());
-        return;
+        return null;
       }
 
       const group = workspace._owner as Group;
