@@ -4,7 +4,7 @@ import { Tree, NodeRendererProps, TreeApi } from "react-arborist";
 import { useDragDropManager } from "react-dnd";
 import useResizeObserver from "use-resize-observer";
 import { cn } from "@/lib/utils";
-import { Folder, File, ChevronRight, ChevronDown, Pin, MoreVertical, Trash2, Edit2 } from "lucide-react";
+import { Folder, File, ChevronRight, ChevronDown, Pin, MoreVertical, Trash2, Edit2, GripVertical } from "lucide-react";
 import { useRef, useImperativeHandle, forwardRef, useState, useEffect } from "react";
 import {
   DropdownMenu,
@@ -46,11 +46,9 @@ let deleteClickCallback: ((ids: string[]) => void) | null = null;
 function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNode>) {
   return (
     <div
-      ref={dragHandle}
       style={style}
       className={cn(
-        "group flex items-center gap-2 px-2 py-1.5 rounded-sm cursor-pointer select-none",
-        "touch-action-none", // Critical for iOS touch DnD
+        "group flex items-center gap-1 px-1 py-1.5 rounded-sm cursor-pointer select-none",
         node.isSelected && "bg-accent",
         node.isFocused && "ring-1 ring-ring"
       )}
@@ -63,6 +61,21 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
         }
       }}
     >
+      {/* Drag handle - separate from clickable area */}
+      <div
+        ref={dragHandle}
+        className={cn(
+          "p-1 cursor-grab active:cursor-grabbing touch-action-none rounded",
+          "opacity-0 group-hover:opacity-100 sm:opacity-40 sm:group-hover:opacity-100",
+          "hover:bg-accent transition-opacity",
+          // Always visible on touch devices when selected for discoverability
+          node.isSelected && "opacity-60"
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="h-3 w-3 text-muted-foreground" />
+      </div>
+
       {/* Folder expand/collapse icon */}
       {node.isInternal ? (
         <button

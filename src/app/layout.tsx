@@ -15,6 +15,19 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Numpad",
   description: "E2E encrypted notetaking with real-time sync",
+  icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.png",
+    apple: [
+      { url: "/icons/apple-touch-icon-120x120.png", sizes: "120x120" },
+      { url: "/icons/apple-touch-icon-152x152.png", sizes: "152x152" },
+      { url: "/icons/apple-touch-icon-180x180.png", sizes: "180x180" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
