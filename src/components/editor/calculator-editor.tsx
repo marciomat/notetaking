@@ -12,9 +12,16 @@ interface CalculatorEditorProps {
 export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
   const [localLines, setLocalLines] = useState<string[]>(lines.length > 0 ? lines : [""]);
   const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+  const isLocalUpdateRef = useRef(false);
 
-  // Sync external changes
+  // Sync external changes (from CRDT sync)
   useEffect(() => {
+    // Don't sync back our own changes
+    if (isLocalUpdateRef.current) {
+      isLocalUpdateRef.current = false;
+      return;
+    }
+    
     const incoming = lines.length > 0 ? lines : [""];
     if (JSON.stringify(incoming) !== JSON.stringify(localLines)) {
       setLocalLines(incoming);
@@ -28,6 +35,7 @@ export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
       const newLines = [...localLines];
       newLines[index] = value;
       setLocalLines(newLines);
+      isLocalUpdateRef.current = true;
       onUpdate(newLines);
     },
     [localLines, onUpdate]
@@ -40,6 +48,7 @@ export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
         const newLines = [...localLines];
         newLines.splice(index + 1, 0, "");
         setLocalLines(newLines);
+        isLocalUpdateRef.current = true;
         onUpdate(newLines);
         // Focus new line
         setTimeout(() => {
@@ -51,6 +60,7 @@ export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
         e.preventDefault();
         const newLines = localLines.filter((_, i) => i !== index);
         setLocalLines(newLines);
+        isLocalUpdateRef.current = true;
         onUpdate(newLines);
         // Focus previous line
         setTimeout(() => {

@@ -432,15 +432,26 @@ export default function Home() {
       if (selectedNote.flavour === "calculator") {
         const calcNote = selectedNote as CalculatorNote;
         if (calcNote.content) {
-          // For arrays, we need to replace elements one by one
           const newLines = (content.lines as string[]) ?? [""];
-          // Clear existing lines
-          while (calcNote.content.lines.length > 0) {
-            calcNote.content.lines.pop();
+          const existingLines = calcNote.content.lines;
+          
+          // Update existing lines, add new ones, remove extras
+          // This is more CRDT-friendly than clearing and re-adding
+          for (let i = 0; i < newLines.length; i++) {
+            if (i < existingLines.length) {
+              // Update existing line if it changed
+              if (existingLines[i] !== newLines[i]) {
+                existingLines[i] = newLines[i];
+              }
+            } else {
+              // Add new line
+              existingLines.push(newLines[i]);
+            }
           }
-          // Add new lines
-          for (const line of newLines) {
-            calcNote.content.lines.push(line);
+          
+          // Remove extra lines if the new array is shorter
+          while (existingLines.length > newLines.length) {
+            existingLines.pop();
           }
         }
       } else {
