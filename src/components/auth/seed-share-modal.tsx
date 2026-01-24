@@ -108,15 +108,26 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
   const startScanning = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
       });
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setScanning(true);
-        animationRef.current = requestAnimationFrame(scanFrame);
+        // Wait for video metadata to load before playing
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play().then(() => {
+            setScanning(true);
+            animationRef.current = requestAnimationFrame(scanFrame);
+          }).catch((err) => {
+            console.error("Error playing video:", err);
+            toast.error("Failed to start camera preview");
+          });
+        };
       }
     } catch (error) {
       console.error("Camera access denied:", error);
@@ -250,8 +261,9 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
                         playsInline
                         muted
                         className="w-full h-full object-cover"
+                        style={{ transform: 'scaleX(-1)' }} // Mirror for better UX
                       />
-                      <div className="absolute inset-0 border-2 border-primary/50 m-8 rounded" />
+                      <div className="absolute inset-0 border-2 border-primary/50 m-8 rounded pointer-events-none" />
                     </>
                   ) : (
                     <div className="flex items-center justify-center h-full">

@@ -114,11 +114,9 @@ function SidebarContent({
     // If parentId is not provided, check if a folder is selected
     if (parentId === null && selectedId) {
       const selected = findNodeById(treeData, selectedId);
-      console.log("Selected node:", selected, "selectedId:", selectedId);
       // If selected item is a folder, use it as parent
       if (selected?.isFolder) {
         parentId = selectedId;
-        console.log("Creating inside folder:", parentId);
       }
     }
     setCreateParentId(parentId);
@@ -132,8 +130,6 @@ function SidebarContent({
 
   const handleCreateSubmit = () => {
     if (!itemName.trim()) return;
-    
-    console.log("Creating with parentId:", createParentId, "name:", itemName);
     
     if (createItemType === "folder") {
       onCreateFolder(createParentId, itemName);

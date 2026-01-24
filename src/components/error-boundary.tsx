@@ -29,8 +29,8 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-screen items-center justify-center bg-background">
-          <div className="text-center max-w-md p-6">
+        <div className="flex h-screen items-center justify-center bg-background p-4">
+          <div className="text-center max-w-md p-6 bg-card border border-border rounded-lg">
             <h1 className="text-2xl font-bold text-foreground mb-4">
               Something went wrong
             </h1>
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </p>
             <details className="text-left text-sm text-muted-foreground mb-4 p-2 bg-secondary rounded">
               <summary className="cursor-pointer">Technical details</summary>
-              <pre className="mt-2 overflow-auto text-xs">
+              <pre className="mt-2 overflow-auto text-xs max-h-40">
                 {this.state.error?.stack}
               </pre>
             </details>
