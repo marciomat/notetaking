@@ -105,7 +105,7 @@ export default function Home() {
         workspace.allCalculatorNotes?.push(note);
       } else {
         const content = MarkdownContent.create(
-          { type: "doc", content: [] },
+          { type: "doc", rawContent: "[]" },
           { owner: group }
         );
         note = PlainNote.create(
