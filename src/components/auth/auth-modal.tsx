@@ -134,51 +134,6 @@ export function AuthModal() {
     }
   }, [inputPassphrase, logIn]);
 
-  const startScanning = useCallback(async () => {
-    // First show the video UI
-    setScanning(true);
-    setCameraReady(false);
-  }, []);
-
-  // Effect to initialize camera once video element is mounted
-  useEffect(() => {
-    if (!scanning || cameraReady) return;
-
-    const initCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-        });
-        streamRef.current = stream;
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play()
-              .then(() => {
-                setCameraReady(true);
-              })
-              .catch((err) => {
-                console.error("Error playing video:", err);
-                toast.error("Failed to start camera");
-                setScanning(false);
-              });
-          };
-        }
-      } catch (error) {
-        console.error("Camera error:", error);
-        toast.error("Failed to access camera");
-        setScanning(false);
-      }
-    };
-
-    initCamera();
-  }, [scanning, cameraReady]);
-
   const stopScanning = useCallback(() => {
     setScanning(false);
     setCameraReady(false);
@@ -194,6 +149,71 @@ export function AuthModal() {
       videoRef.current.srcObject = null;
     }
   }, []);
+
+  const startScanning = useCallback(async () => {
+    // Check if camera is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error("Camera not available on this device");
+      return;
+    }
+    
+    try {
+      // Request camera FIRST before showing UI
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        },
+      });
+      
+      // Store the stream
+      streamRef.current = stream;
+      
+      // Now show the scanning UI - the video element will be rendered
+      setScanning(true);
+      setCameraReady(false);
+    } catch (error) {
+      console.error("Camera error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      if (errorMsg.includes("Permission") || errorMsg.includes("NotAllowed")) {
+        toast.error("Camera permission denied");
+      } else if (errorMsg.includes("NotFound")) {
+        toast.error("No camera found");
+      } else {
+        toast.error(`Camera error: ${errorMsg}`);
+      }
+    }
+  }, []);
+
+  // Attach stream to video element once it's rendered
+  useEffect(() => {
+    if (scanning && streamRef.current && videoRef.current && !cameraReady) {
+      const video = videoRef.current;
+      video.srcObject = streamRef.current;
+      
+      const handleCanPlay = () => {
+        video.play()
+          .then(() => setCameraReady(true))
+          .catch((err) => {
+            console.error("Failed to play video:", err);
+            toast.error("Failed to start camera preview");
+            stopScanning();
+          });
+      };
+      
+      video.addEventListener("canplay", handleCanPlay);
+      
+      // Also try to play immediately in case canplay already fired
+      if (video.readyState >= 3) {
+        handleCanPlay();
+      }
+      
+      return () => {
+        video.removeEventListener("canplay", handleCanPlay);
+      };
+    }
+  }, [scanning, cameraReady, stopScanning]);
 
   const startScanFrame = useCallback(() => {
     const video = videoRef.current;
@@ -302,10 +322,11 @@ export function AuthModal() {
               <div className="space-y-4">
                 <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
                   {!cameraReady && (
-                    <div className="absolute inset-0 flex items-center justify-center text-white">
+                    <div className="absolute inset-0 flex items-center justify-center text-white z-10">
                       <span className="animate-pulse">Starting camera...</span>
                     </div>
                   )}
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                   <video
                     ref={videoRef}
                     autoPlay
@@ -317,7 +338,7 @@ export function AuthModal() {
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="absolute top-4 right-4"
+                    className="absolute top-4 right-4 z-20"
                     onClick={stopScanning}
                   >
                     <X className="h-4 w-4" />
