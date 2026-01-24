@@ -492,7 +492,7 @@ export default function Home() {
         treeRef={treeRef}
       />
 
-      <main className="flex-1 p-4 md:p-6 md:ml-0 ml-12">
+      <main className="flex-1 p-4 md:p-6 md:ml-0 ml-12 safe-top">
         {selectedNote ? (
           <NoteEditor
             note={selectedNote}

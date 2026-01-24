@@ -256,7 +256,7 @@ function SidebarContent({
 
       <div className="flex flex-col h-full">
         {/* Header */}
-      <div className="p-4 border-b space-y-3">
+      <div className="p-4 border-b space-y-3 safe-top">
         <div className="flex items-center justify-between">
           <h1 className="font-semibold text-lg">Notes</h1>
           <Button variant="ghost" size="icon" onClick={onOpenSettings}>
@@ -343,7 +343,7 @@ export function Sidebar(props: SidebarProps) {
       <div className="md:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="fixed top-4 left-4 z-40">
+            <Button variant="ghost" size="icon" className="fixed left-4 z-40 fixed-safe-top">
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
