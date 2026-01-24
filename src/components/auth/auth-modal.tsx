@@ -150,7 +150,6 @@ export function AuthModal() {
           videoRef.current?.play()
             .then(() => {
               setScanning(true);
-              startScanFrame();
             })
             .catch((err) => {
               console.error("Error playing video:", err);
@@ -183,13 +182,13 @@ export function AuthModal() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    if (!video || !canvas || !scanning) return;
+    if (!video || !canvas) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const scan = () => {
-      if (!scanning || !video.readyState || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      if (!video.readyState || video.readyState !== video.HAVE_ENOUGH_DATA) {
         animationRef.current = requestAnimationFrame(scan);
         return;
       }
@@ -210,6 +209,7 @@ export function AuthModal() {
           setInputPassphrase(phrase);
           stopScanning();
           toast.success("QR code scanned successfully");
+          return; // Stop scanning loop after successful scan
         }
       }
 
@@ -217,7 +217,7 @@ export function AuthModal() {
     };
 
     scan();
-  }, [scanning, stopScanning]);
+  }, [stopScanning]);
 
   useEffect(() => {
     if (scanning) {

@@ -92,9 +92,9 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
     const code = jsQR(imageData.data, imageData.width, imageData.height);
 
     if (code?.data) {
-      // Validate that it looks like a passphrase (12 words)
+      // Validate that it looks like a passphrase (24 words)
       const words = code.data.trim().split(/\s+/);
-      if (words.length === 12) {
+      if (words.length === 24) {
         setScannedPhrase(code.data);
         stopScanning();
         toast.success("QR code scanned successfully!");
@@ -137,8 +137,8 @@ export function SeedShareModal({ open, onOpenChange }: SeedShareModalProps) {
 
   const handleRestore = async (phrase: string) => {
     const words = phrase.trim().toLowerCase().split(/\s+/);
-    if (words.length !== 12) {
-      toast.error("Invalid passphrase. Please enter 12 words.");
+    if (words.length !== 24) {
+      toast.error("Invalid passphrase. Please enter 24 words.");
       return;
     }
 
