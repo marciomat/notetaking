@@ -39,9 +39,10 @@ export interface NoteTreeRef {
   editNode: (id: string) => void;
 }
 
-// Store the rename callback in a module-level variable that the renderer can access
+// Store callbacks in module-level variables that the renderer can access
 let renameClickCallback: ((id: string, currentName: string) => void) | null = null;
 let deleteClickCallback: ((ids: string[]) => void) | null = null;
+let selectCallback: ((node: TreeNode | null) => void) | null = null;
 
 function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNode>) {
   return (
@@ -52,8 +53,15 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
         node.isSelected && "bg-accent",
         node.isFocused && "ring-1 ring-ring"
       )}
-      onClick={() => node.select()}
-      onDoubleClick={() => {
+      onClick={() => {
+        node.select();
+        // Immediately trigger the selection callback for single-tap UX on mobile
+        if (selectCallback) {
+          selectCallback(node.data);
+        }
+      }}
+      onDoubleClick={(e) => {
+        e.preventDefault(); // Prevent double-click from triggering onClick twice
         if (node.isInternal) {
           node.toggle();
         } else {
@@ -200,11 +208,13 @@ export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree
   useEffect(() => {
     renameClickCallback = onRenameClick || null;
     deleteClickCallback = onDeleteClick || null;
+    selectCallback = onSelect || null;
     return () => {
       renameClickCallback = null;
       deleteClickCallback = null;
+      selectCallback = null;
     };
-  }, [onRenameClick, onDeleteClick]);
+  }, [onRenameClick, onDeleteClick, onSelect]);
 
   // Expose editNode method to parent (for future use)
   useImperativeHandle(ref, () => ({
