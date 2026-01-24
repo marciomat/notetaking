@@ -48,6 +48,24 @@
   }
 }
 
+/* iOS PWA: Ensure dialogs are accessible when keyboard is open */
+@supports (-webkit-touch-callout: none) {
+  /* Target iOS Safari */
+  dialog[data-state="open"],
+  [role="dialog"][data-state="open"] {
+    position: fixed;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Ensure input fields are visible when iOS keyboard appears */
+input:focus,
+textarea:focus {
+  scroll-margin-bottom: 200px; /* Space for iOS keyboard */
+}
+
 /* iOS safe area padding for PWA */
 .safe-area-inset {
   padding-top: env(safe-area-inset-top);

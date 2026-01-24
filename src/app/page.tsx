@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useAccount, useIsAuthenticated } from "jazz-react";
 import { Group } from "jazz-tools";
 import {
@@ -16,6 +16,7 @@ import {
   Note,
 } from "@/lib/schema";
 import { Sidebar } from "@/components/layout/sidebar";
+import { NoteTreeRef } from "@/components/tree/note-tree";
 import { NoteEditor } from "@/components/editor/note-editor";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { SettingsModal } from "@/components/settings/settings-modal";
@@ -45,6 +46,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const treeRef = useRef<NoteTreeRef>(null);
 
   const workspace = me?.root?.workspace;
 
@@ -78,8 +80,8 @@ export default function Home() {
 
   // Create a new note
   const handleCreateNote = useCallback(
-    (flavour: "plain" | "calculator", parentId: string | null) => {
-      if (!workspace || !me) return;
+    (flavour: "plain" | "calculator", parentId: string | null, name?: string): string | null => {
+      if (!workspace || !me) return null;
 
       const group = workspace._owner as Group;
       const now = new Date();
@@ -87,12 +89,15 @@ export default function Home() {
       let note: PlainNote | CalculatorNote;
       let noteId: string;
 
+      const defaultTitle = flavour === "calculator" ? "Untitled Calculator" : "Untitled Note";
+      const title = name || defaultTitle;
+
       if (flavour === "calculator") {
         const content = CalculatorContent.create({ lines: [""] }, { owner: group });
         note = CalculatorNote.create(
           {
             flavour: "calculator",
-            title: "Untitled Calculator",
+            title,
             content,
             tags: [],
             isPinned: false,
@@ -111,7 +116,7 @@ export default function Home() {
         note = PlainNote.create(
           {
             flavour: "plain",
-            title: "Untitled Note",
+            title,
             content,
             tags: [],
             isPinned: false,
@@ -146,15 +151,15 @@ export default function Home() {
       }
 
       setSelectedNoteId(noteId);
-      toast.success(`${flavour === "calculator" ? "Calculator" : "Note"} created`);
+      return noteId;
     },
     [workspace, me]
   );
 
   // Create a new folder
   const handleCreateFolder = useCallback(
-    (parentId: string | null) => {
-      if (!workspace || !me) return;
+    (parentId: string | null, name?: string): string | null => {
+      if (!workspace || !me) return null;
 
       // Check depth limit
       if (!canCreateFolderAt(parentId, rawTreeData)) {
@@ -166,10 +171,11 @@ export default function Home() {
       const now = new Date();
 
       const depth = parentId ? (findFolder(workspace, parentId)?.depth ?? 0) + 1 : 0;
+      const folderName = name || "New Folder";
 
       const folder = Folder.create(
         {
-          name: "New Folder",
+          name: folderName,
           depth,
           isExpanded: true,
           children: FolderItemList.create([], { owner: group }),
@@ -198,7 +204,7 @@ export default function Home() {
         workspace.rootChildren?.push(folderItem);
       }
 
-      toast.success("Folder created");
+      return folder.id;
     },
     [workspace, me, rawTreeData]
   );
@@ -464,8 +470,11 @@ export default function Home() {
         treeData={treeData}
         selectedId={selectedNoteId}
         onSelect={(node) => {
-          if (node && !node.isFolder) {
+          if (node) {
             setSelectedNoteId(node.id);
+            // Don't show editor for folders, but still track selection
+          } else {
+            setSelectedNoteId(null);
           }
         }}
         onCreateNote={handleCreateNote}
@@ -480,6 +489,7 @@ export default function Home() {
         selectedTags={selectedTags}
         onTagsChange={setSelectedTags}
         tagCounts={tagCounts}
+        treeRef={treeRef}
       />
 
       <main className="flex-1 p-4 md:p-6 md:ml-0 ml-12">
