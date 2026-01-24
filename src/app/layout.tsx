@@ -1,5 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { NumpadJazzProvider } from "@/components/providers/jazz-provider";
+import { DnDWrapper } from "@/components/providers/dnd-provider";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { Toaster } from "sonner";
+import { IOSInstallPrompt } from "@/components/ios-install-prompt";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,34 +14,15 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Numpad",
-  description: "A local-first note-taking app with calculator notepad, tags, and cloud sync",
-  manifest: "/manifest.json",
-  icons: {
-    icon: [
-      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
-      { url: "/icons/icon.svg", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-  },
+  description: "E2E encrypted notetaking with real-time sync",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Numpad",
-  },
-  formatDetection: {
-    telephone: false,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#6366f1" },
-    { media: "(prefers-color-scheme: dark)", color: "#4f46e5" },
-  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -50,24 +36,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark">
       <head>
-        {/* iOS PWA specific tags */}
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Numpad" />
-        {/* Splash screens for iOS */}
-        <link
-          rel="apple-touch-startup-image"
-          href="/icons/icon-512x512.png"
-        />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="/icons/apple-touch-icon-120x120.png" />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
+        <ErrorBoundary>
+          <NumpadJazzProvider>
+            <DnDWrapper>
+              {children}
+              <Toaster theme="dark" position="bottom-right" />
+              <IOSInstallPrompt />
+            </DnDWrapper>
+          </NumpadJazzProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

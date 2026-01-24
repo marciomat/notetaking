@@ -1,4 +1,5 @@
 # Goal
+- Name of the app: numpad
 - Develop a Web App that is compatible with PWA (Progressive Web App)
 - MUST run in iOS as well as on a Desktop browser
 - App is a notetaking app, similar to Obsidian
