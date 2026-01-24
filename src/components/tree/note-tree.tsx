@@ -4,7 +4,7 @@ import { Tree, NodeRendererProps, TreeApi } from "react-arborist";
 import { useDragDropManager } from "react-dnd";
 import useResizeObserver from "use-resize-observer";
 import { cn } from "@/lib/utils";
-import { Folder, File, ChevronRight, ChevronDown, Pin, MoreVertical, Trash2, Edit2, GripVertical } from "lucide-react";
+import { Folder, File, ChevronRight, ChevronDown, Pin, MoreVertical, Trash2, Edit2, GripVertical, Calculator } from "lucide-react";
 import { useRef, useImperativeHandle, forwardRef, useState, useEffect } from "react";
 import {
   DropdownMenu,
@@ -108,6 +108,8 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
       {/* Icon */}
       {node.isInternal ? (
         <Folder className="h-4 w-4 text-muted-foreground" />
+      ) : node.data.flavour === "calculator" ? (
+        <Calculator className="h-4 w-4 text-muted-foreground" />
       ) : (
         <File className="h-4 w-4 text-muted-foreground" />
       )}
