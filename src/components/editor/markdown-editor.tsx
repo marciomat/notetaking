@@ -106,7 +106,7 @@ export function MarkdownEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose prose-invert prose-sm sm:prose-base max-w-none focus:outline-none min-h-[200px] p-4 sm:p-6",
+        class: "tiptap-editor max-w-none focus:outline-none min-h-[200px] p-4 sm:p-6",
       },
     },
   });

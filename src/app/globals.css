@@ -95,6 +95,9 @@ textarea:focus {
 /* TipTap Editor - Obsidian-like styling */
 .ProseMirror {
   outline: none;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -105,102 +108,219 @@ textarea:focus {
   height: 0;
 }
 
-/* Headings with proper hierarchy */
+/* Base typography - mobile-first */
+.ProseMirror {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+}
+
+/* Headings with proper hierarchy - responsive */
 .ProseMirror h1 {
-  @apply text-3xl font-bold mt-6 mb-4 text-foreground;
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground));
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .ProseMirror h1 {
+    font-size: 2.25rem;
+    margin-top: 2rem;
+    margin-bottom: 1.25rem;
+  }
 }
 
 .ProseMirror h2 {
-  @apply text-2xl font-bold mt-5 mb-3 text-foreground;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
+  line-height: 1.3;
+}
+
+@media (min-width: 640px) {
+  .ProseMirror h2 {
+    font-size: 1.875rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
 }
 
 .ProseMirror h3 {
-  @apply text-xl font-semibold mt-4 mb-2 text-foreground;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
+  line-height: 1.4;
+}
+
+@media (min-width: 640px) {
+  .ProseMirror h3 {
+    font-size: 1.5rem;
+  }
 }
 
 .ProseMirror h4 {
-  @apply text-lg font-semibold mt-3 mb-2 text-foreground;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
+  line-height: 1.4;
+}
+
+@media (min-width: 640px) {
+  .ProseMirror h4 {
+    font-size: 1.25rem;
+  }
 }
 
 .ProseMirror h5 {
-  @apply text-base font-semibold mt-2 mb-1 text-foreground;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: hsl(var(--foreground));
+  line-height: 1.5;
 }
 
 .ProseMirror h6 {
-  @apply text-sm font-semibold mt-2 mb-1 text-muted-foreground;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.5;
 }
 
 /* Lists */
 .ProseMirror ul,
 .ProseMirror ol {
-  @apply pl-6 my-3;
+  padding-left: 1.5rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .ProseMirror ul {
-  @apply list-disc;
+  list-style-type: disc;
 }
 
 .ProseMirror ol {
-  @apply list-decimal;
+  list-style-type: decimal;
 }
 
 .ProseMirror li {
-  @apply my-1;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
 }
 
 .ProseMirror li p {
-  @apply my-0;
+  margin: 0;
 }
 
 /* Task lists */
 .ProseMirror ul[data-type="taskList"] {
-  @apply list-none pl-0;
+  list-style: none;
+  padding-left: 0;
 }
 
 .ProseMirror ul[data-type="taskList"] li {
-  @apply flex items-start gap-2;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .ProseMirror ul[data-type="taskList"] li > label {
-  @apply flex items-center gap-2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
 }
 
 .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
-  @apply w-4 h-4 rounded border-muted-foreground/50 bg-transparent cursor-pointer;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  border-radius: 0.25rem;
+  border: 1px solid hsl(var(--muted-foreground) / 0.5);
+  background-color: transparent;
+  cursor: pointer;
+  margin-top: 0.125rem;
 }
 
-/* Code blocks with syntax highlighting */
+/* Code blocks with syntax highlighting - mobile optimized */
 .ProseMirror pre {
-  @apply bg-muted/50 rounded-lg p-4 my-4 overflow-x-auto;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.875rem;
+  background-color: hsl(var(--muted) / 0.5);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
+@media (min-width: 640px) {
+  .ProseMirror pre {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+}
+
 .ProseMirror pre code {
-  @apply bg-transparent p-0 text-sm;
+  background-color: transparent;
+  padding: 0;
+  font-size: inherit;
   color: inherit;
 }
 
 /* Inline code */
 .ProseMirror code {
-  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  background-color: hsl(var(--muted));
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
   color: hsl(var(--foreground));
 }
 
 /* Blockquotes */
 .ProseMirror blockquote {
-  @apply border-l-4 border-primary/50 pl-4 py-2 my-4 italic text-muted-foreground;
+  border-left: 4px solid hsl(var(--primary) / 0.5);
+  padding-left: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
 }
 
 /* Horizontal rule */
 .ProseMirror hr {
-  @apply my-6 border-muted-foreground/20;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-color: hsl(var(--muted-foreground) / 0.2);
 }
 
 /* Links */
 .ProseMirror a {
-  @apply text-primary underline underline-offset-2 decoration-primary/50 hover:decoration-primary transition-colors;
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.5);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.2s;
+}
+
+.ProseMirror a:hover {
+  text-decoration-color: hsl(var(--primary));
 }
 
 /* Syntax highlighting for code blocks */
@@ -266,28 +386,67 @@ textarea:focus {
 
 /* Better paragraph spacing */
 .ProseMirror p {
-  @apply my-3;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .ProseMirror p:first-child {
-  @apply mt-0;
+  margin-top: 0;
 }
 
 .ProseMirror p:last-child {
-  @apply mb-0;
+  margin-bottom: 0;
 }
 
 /* Table support (if needed in future) */
 .ProseMirror table {
-  @apply border-collapse my-4 w-full;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .ProseMirror table {
+    display: table;
+  }
 }
 
 .ProseMirror th,
 .ProseMirror td {
-  @apply border border-muted px-4 py-2;
+  border: 1px solid hsl(var(--muted));
+  padding: 0.5rem 1rem;
 }
 
 .ProseMirror th {
-  @apply bg-muted font-semibold;
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 639px) {
+  .ProseMirror {
+    font-size: 1rem;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Better touch targets for checkboxes */
+  .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    min-width: 1.25rem;
+  }
+  
+  /* Prevent code blocks from breaking layout */
+  .ProseMirror pre {
+    max-width: 100%;
+  }
+  
+  /* Better tap targets for links */
+  .ProseMirror a {
+    padding: 0.125rem 0;
+  }
 }
 
