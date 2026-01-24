@@ -337,6 +337,15 @@ function SidebarContent({
 export function Sidebar(props: SidebarProps) {
   const [open, setOpen] = useState(false);
 
+  // Wrap onSelect to close the sheet on mobile after selection
+  const handleSelect = (node: TreeNode | null) => {
+    props.onSelect(node);
+    // Close sheet on mobile when a note (not folder) is selected
+    if (node && !node.isFolder) {
+      setOpen(false);
+    }
+  };
+
   return (
     <>
       {/* Mobile: Sheet */}
@@ -348,7 +357,7 @@ export function Sidebar(props: SidebarProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-80">
-            <SidebarContent {...props} />
+            <SidebarContent {...props} onSelect={handleSelect} />
           </SheetContent>
         </Sheet>
       </div>

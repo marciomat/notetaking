@@ -42,7 +42,6 @@ export interface NoteTreeRef {
 // Store callbacks in module-level variables that the renderer can access
 let renameClickCallback: ((id: string, currentName: string) => void) | null = null;
 let deleteClickCallback: ((ids: string[]) => void) | null = null;
-let selectCallback: ((node: TreeNode | null) => void) | null = null;
 
 function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNode>) {
   return (
@@ -54,11 +53,8 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
         node.isFocused && "ring-1 ring-ring"
       )}
       onClick={() => {
-        node.select();
-        // Immediately trigger the selection callback for single-tap UX on mobile
-        if (selectCallback) {
-          selectCallback(node.data);
-        }
+        // Activate immediately opens the note (single-click UX)
+        node.activate();
       }}
       onDoubleClick={(e) => {
         e.preventDefault(); // Prevent double-click from triggering onClick twice
@@ -208,13 +204,11 @@ export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree
   useEffect(() => {
     renameClickCallback = onRenameClick || null;
     deleteClickCallback = onDeleteClick || null;
-    selectCallback = onSelect || null;
     return () => {
       renameClickCallback = null;
       deleteClickCallback = null;
-      selectCallback = null;
     };
-  }, [onRenameClick, onDeleteClick, onSelect]);
+  }, [onRenameClick, onDeleteClick]);
 
   // Expose editNode method to parent (for future use)
   useImperativeHandle(ref, () => ({
@@ -278,11 +272,13 @@ export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree
           const selected = nodes[0]?.data ?? null;
           onSelect(selected);
         }}
+        onActivate={(node) => {
+          // On activation (click/tap), immediately select and notify parent
+          onSelect(node.data);
+        }}
         // Disable keyboard shortcuts to prevent accidental changes
         disableEdit
         disableMultiSelection
-        // Custom key handling - only allow navigation and expansion
-        onActivate={() => {}} // Disable 'a' (create) and other activation shortcuts
       >
         {TreeNodeRenderer}
       </Tree>
