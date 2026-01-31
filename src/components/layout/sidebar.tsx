@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import { NoteTree, TreeNode, NoteTreeRef } from "@/components/tree/note-tree";
 import { TagFilter } from "@/components/tree/tag-filter";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface SidebarProps {
   treeData: TreeNode[];
@@ -53,7 +52,7 @@ interface SidebarProps {
   children?: React.ReactNode;
 }
 
-// The actual sidebar content (shared between mobile and desktop)
+// The actual sidebar content
 function SidebarContent({
   treeData,
   selectedId,
@@ -72,7 +71,8 @@ function SidebarContent({
   tagCounts,
   treeRef,
   onNoteClick,
-}: Omit<SidebarProps, "children"> & { onNoteClick?: () => void }) {
+  onCollapse,
+}: Omit<SidebarProps, "children"> & { onNoteClick?: () => void; onCollapse?: () => void }) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createItemType, setCreateItemType] = useState<"note" | "calculator" | "folder">("note");
   const [createParentId, setCreateParentId] = useState<string | null>(null);
@@ -242,9 +242,16 @@ function SidebarContent({
         <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="font-semibold text-lg">Notes</h1>
-            <Button variant="ghost" size="icon" onClick={onOpenSettings}>
-              <Settings className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" onClick={onOpenSettings}>
+                <Settings className="h-4 w-4" />
+              </Button>
+              {onCollapse && (
+                <Button variant="ghost" size="icon" onClick={onCollapse}>
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Search */}
@@ -322,95 +329,66 @@ function SidebarContent({
 export function Sidebar({ children, ...props }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  const isMobile = useIsMobile();
 
   // Close mobile sidebar when a note is clicked
   const handleNoteClick = () => {
-    if (isMobile) {
-      setMobileOpen(false);
-    }
+    setMobileOpen(false);
   };
 
   return (
     <div className="flex h-screen w-full bg-background">
-      {/* Mobile: Sheet-based sidebar */}
-      {isMobile ? (
-        <>
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetContent side="left" className="w-80 p-0">
-              <SidebarContent {...props} onNoteClick={handleNoteClick} />
-            </SheetContent>
-          </Sheet>
+      {/* Mobile: Sheet-based sidebar (hidden on md+) */}
+      <div className="md:hidden">
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-80 p-0">
+            <SidebarContent {...props} onNoteClick={handleNoteClick} />
+          </SheetContent>
+        </Sheet>
+      </div>
 
-          {/* Main content area for mobile */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Mobile header */}
-            <div className="flex items-center gap-3 p-4 border-b">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileOpen(true)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              <span className="font-medium truncate">
-                {props.selectedId ? props.treeData.find(n => n.id === props.selectedId)?.name || "Notes" : "Notes"}
-              </span>
-            </div>
-            {/* Content */}
-            <div className="flex-1 overflow-auto">
-              {children}
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Desktop: Fixed sidebar with collapse support */}
-          <div
-            className={`border-r h-screen transition-all duration-200 ${
-              desktopCollapsed ? "w-0 overflow-hidden" : "w-80"
-            }`}
-          >
-            <SidebarContent {...props} />
-          </div>
-
-          {/* Toggle button for collapsed state */}
-          {desktopCollapsed && (
+      {/* Desktop: Fixed sidebar (hidden on mobile) */}
+      <div className={`hidden md:block border-r h-screen transition-all duration-200 ${desktopCollapsed ? "w-12" : "w-80"}`}>
+        {desktopCollapsed ? (
+          <div className="p-2">
             <Button
               variant="ghost"
               size="icon"
-              className="fixed left-2 top-2 z-10"
               onClick={() => setDesktopCollapsed(false)}
             >
               <Menu className="h-5 w-5" />
             </Button>
-          )}
-
-          {/* Main content area for desktop */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Desktop header with collapse toggle */}
-            <div className="hidden md:flex items-center gap-2 p-2 border-b">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setDesktopCollapsed(!desktopCollapsed)}
-              >
-                {desktopCollapsed ? <Menu className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-              </Button>
-            </div>
-            {/* Content */}
-            <div className="flex-1 overflow-auto p-4 md:p-6">
-              {children}
-            </div>
           </div>
-        </>
-      )}
+        ) : (
+          <SidebarContent {...props} onCollapse={() => setDesktopCollapsed(true)} />
+        )}
+      </div>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile header (hidden on md+) */}
+        <div className="md:hidden flex items-center gap-3 p-4 border-b">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <span className="font-medium truncate">
+            {props.selectedId ? props.treeData.find(n => n.id === props.selectedId)?.name || "Notes" : "Notes"}
+          </span>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-4 md:p-6">
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
 
 // For backwards compatibility
 export function MobileHeader({ title }: { title?: string }) {
-  // This is now handled internally by the Sidebar component
   return null;
 }

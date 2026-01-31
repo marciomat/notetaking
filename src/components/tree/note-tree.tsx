@@ -52,9 +52,9 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
     <div
       style={style}
       className={cn(
-        "group flex items-center gap-1 px-1 py-1.5 rounded-sm cursor-pointer select-none",
-        node.isSelected && "bg-accent",
-        node.isFocused && "ring-1 ring-ring"
+        "group flex items-center gap-1 px-1 py-0.5 rounded-sm cursor-pointer select-none overflow-hidden",
+        node.isSelected && "bg-accent/50 border-l-2 border-primary",
+        node.isFocused && !node.isSelected && "ring-1 ring-ring"
       )}
       onClick={() => {
         // Select the node visually
