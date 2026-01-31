@@ -366,7 +366,7 @@ export function Sidebar({ children, ...props }: SidebarProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header (hidden on md+) */}
-        <div className="md:hidden flex items-center gap-3 p-4 border-b">
+        <div className="md:hidden flex items-center gap-3 px-4 pb-4 border-b safe-top">
           <Button
             variant="ghost"
             size="icon"
