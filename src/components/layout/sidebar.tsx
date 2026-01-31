@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -18,29 +20,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarProvider,
-  SidebarTrigger,
-  SidebarInset,
-  SidebarInput,
-  SidebarGroup,
-  SidebarGroupContent,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import {
   Plus,
   FolderPlus,
   FileText,
   Calculator,
   Search,
   Settings,
+  Menu,
+  PanelLeftClose,
 } from "lucide-react";
 import { NoteTree, TreeNode, NoteTreeRef } from "@/components/tree/note-tree";
 import { TagFilter } from "@/components/tree/tag-filter";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-interface AppSidebarProps {
+interface SidebarProps {
   treeData: TreeNode[];
   selectedId: string | null;
   onSelect: (node: TreeNode | null) => void;
@@ -60,8 +53,8 @@ interface AppSidebarProps {
   children?: React.ReactNode;
 }
 
-// Inner component that can use useSidebar hook
-function AppSidebarContent({
+// The actual sidebar content (shared between mobile and desktop)
+function SidebarContent({
   treeData,
   selectedId,
   onSelect,
@@ -78,9 +71,8 @@ function AppSidebarContent({
   onTagsChange,
   tagCounts,
   treeRef,
-}: Omit<AppSidebarProps, "children">) {
-  const { setOpenMobile } = useSidebar();
-
+  onNoteClick,
+}: Omit<SidebarProps, "children"> & { onNoteClick?: () => void }) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createItemType, setCreateItemType] = useState<"note" | "calculator" | "folder">("note");
   const [createParentId, setCreateParentId] = useState<string | null>(null);
@@ -95,7 +87,6 @@ function AppSidebarContent({
   const [deleteItemIds, setDeleteItemIds] = useState<string[]>([]);
   const [deleteItemName, setDeleteItemName] = useState("");
 
-  // Select text when rename dialog opens
   useEffect(() => {
     if (renameDialogOpen && renameInputRef.current) {
       requestAnimationFrame(() => {
@@ -107,7 +98,6 @@ function AppSidebarContent({
     }
   }, [renameDialogOpen]);
 
-  // Helper to find a node by ID recursively
   const findNodeById = (nodes: TreeNode[], id: string | null): TreeNode | null => {
     if (!id) return null;
     for (const node of nodes) {
@@ -139,13 +129,11 @@ function AppSidebarContent({
 
   const handleCreateSubmit = () => {
     if (!itemName.trim()) return;
-
     if (createItemType === "folder") {
       onCreateFolder(createParentId, itemName);
     } else {
       onCreateNote(createItemType === "calculator" ? "calculator" : "plain", createParentId, itemName);
     }
-
     setCreateDialogOpen(false);
     setItemName("");
   };
@@ -158,9 +146,7 @@ function AppSidebarContent({
 
   const handleRenameSubmit = () => {
     if (!renameValue.trim() || !renameItemId) return;
-
     onRename({ id: renameItemId, name: renameValue });
-
     setRenameDialogOpen(false);
     setRenameItemId(null);
     setRenameValue("");
@@ -178,14 +164,6 @@ function AppSidebarContent({
     setDeleteDialogOpen(false);
     setDeleteItemIds([]);
     setDeleteItemName("");
-  };
-
-  // Wrap onSelect to close mobile sidebar when note is selected
-  const handleSelect = (node: TreeNode | null) => {
-    onSelect(node);
-    if (node && !node.isFolder) {
-      setOpenMobile(false);
-    }
   };
 
   return (
@@ -212,9 +190,7 @@ function AppSidebarContent({
             autoFocus
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleCreateSubmit}>Create</Button>
           </DialogFooter>
         </DialogContent>
@@ -224,9 +200,7 @@ function AppSidebarContent({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename Item</DialogTitle>
-            <DialogDescription>
-              Enter a new name for this item.
-            </DialogDescription>
+            <DialogDescription>Enter a new name for this item.</DialogDescription>
           </DialogHeader>
           <Input
             ref={renameInputRef}
@@ -239,9 +213,7 @@ function AppSidebarContent({
             placeholder="Enter name..."
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleRenameSubmit}>Rename</Button>
           </DialogFooter>
         </DialogContent>
@@ -258,19 +230,16 @@ function AppSidebarContent({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Delete
-            </Button>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteConfirm}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Sidebar using ShadCN components */}
-      <Sidebar>
-        <SidebarHeader className="p-4 border-b space-y-3">
+      {/* Sidebar content */}
+      <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
+        {/* Header */}
+        <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="font-semibold text-lg">Notes</h1>
             <Button variant="ghost" size="icon" onClick={onOpenSettings}>
@@ -281,7 +250,7 @@ function AppSidebarContent({
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <SidebarInput
+            <Input
               placeholder="Search notes..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
@@ -322,57 +291,126 @@ function AppSidebarContent({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </SidebarHeader>
+        </div>
 
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent className="h-[calc(100vh-280px)]">
-              <NoteTree
-                ref={treeRef}
-                data={treeData}
-                selectedId={selectedId}
-                onSelect={handleSelect}
-                onCreate={({ parentId, type }) => {
-                  handleCreateClick(type === "internal" ? "folder" : "note", parentId);
-                  return null;
-                }}
-                onMove={onMove}
-                onRename={onRename}
-                onRenameClick={handleRenameClick}
-                onDelete={onDelete}
-                onDeleteClick={handleDeleteClick}
-              />
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-      </Sidebar>
+        {/* Tree */}
+        <ScrollArea className="flex-1">
+          <div className="p-2 h-[calc(100vh-280px)]">
+            <NoteTree
+              ref={treeRef}
+              data={treeData}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              onNoteClick={onNoteClick}
+              onCreate={({ parentId, type }) => {
+                handleCreateClick(type === "internal" ? "folder" : "note", parentId);
+                return null;
+              }}
+              onMove={onMove}
+              onRename={onRename}
+              onRenameClick={handleRenameClick}
+              onDelete={onDelete}
+              onDeleteClick={handleDeleteClick}
+            />
+          </div>
+        </ScrollArea>
+      </div>
     </>
   );
 }
 
-// Mobile header with sidebar trigger
-export function MobileHeader({ title }: { title?: string }) {
+export function Sidebar({ children, ...props }: SidebarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Close mobile sidebar when a note is clicked
+  const handleNoteClick = () => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
+
   return (
-    <div className="md:hidden flex items-center gap-3 p-4 border-b">
-      <SidebarTrigger />
-      {title && (
-        <span className="font-medium truncate">{title}</span>
+    <div className="flex h-screen w-full bg-background">
+      {/* Mobile: Sheet-based sidebar */}
+      {isMobile ? (
+        <>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetContent side="left" className="w-80 p-0">
+              <SidebarContent {...props} onNoteClick={handleNoteClick} />
+            </SheetContent>
+          </Sheet>
+
+          {/* Main content area for mobile */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Mobile header */}
+            <div className="flex items-center gap-3 p-4 border-b">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileOpen(true)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              <span className="font-medium truncate">
+                {props.selectedId ? props.treeData.find(n => n.id === props.selectedId)?.name || "Notes" : "Notes"}
+              </span>
+            </div>
+            {/* Content */}
+            <div className="flex-1 overflow-auto">
+              {children}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Desktop: Fixed sidebar with collapse support */}
+          <div
+            className={`border-r h-screen transition-all duration-200 ${
+              desktopCollapsed ? "w-0 overflow-hidden" : "w-80"
+            }`}
+          >
+            <SidebarContent {...props} />
+          </div>
+
+          {/* Toggle button for collapsed state */}
+          {desktopCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed left-2 top-2 z-10"
+              onClick={() => setDesktopCollapsed(false)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          )}
+
+          {/* Main content area for desktop */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Desktop header with collapse toggle */}
+            <div className="hidden md:flex items-center gap-2 p-2 border-b">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDesktopCollapsed(!desktopCollapsed)}
+              >
+                {desktopCollapsed ? <Menu className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </Button>
+            </div>
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4 md:p-6">
+              {children}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-// Main exported component that wraps everything in SidebarProvider
-export function AppSidebar({ children, ...props }: AppSidebarProps) {
-  return (
-    <SidebarProvider>
-      <AppSidebarContent {...props} />
-      <SidebarInset>
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
-  );
+// For backwards compatibility
+export function MobileHeader({ title }: { title?: string }) {
+  // This is now handled internally by the Sidebar component
+  return null;
 }
-
-// Export for backward compatibility
-export { AppSidebar as Sidebar };

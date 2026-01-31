@@ -16,7 +16,7 @@ import {
   CalculatorLineList,
   Note,
 } from "@/lib/schema";
-import { Sidebar, MobileHeader } from "@/components/layout/sidebar";
+import { Sidebar } from "@/components/layout/sidebar";
 import { NoteTreeRef } from "@/components/tree/note-tree";
 import { NoteEditor } from "@/components/editor/note-editor";
 import { AuthModal } from "@/components/auth/auth-modal";
@@ -526,45 +526,39 @@ export default function Home() {
         tagCounts={tagCounts}
         treeRef={treeRef}
       >
-        {/* Mobile header with menu button */}
-        <MobileHeader title={selectedNote?.title} />
-
-        {/* Content area */}
-        <div className="flex-1 p-4 md:p-6 overflow-auto">
-          {selectedNote ? (
-            <NoteEditor
-              note={selectedNote}
-              onUpdateTitle={(title) => {
-                selectedNote.title = title;
-                selectedNote.updatedAt = new Date();
-              }}
-              onUpdateContent={handleUpdateContent}
-              onTogglePin={() => {
-                selectedNote.isPinned = !selectedNote.isPinned;
-                selectedNote.updatedAt = new Date();
-              }}
-              onAddTag={(tag) => {
-                const currentTags = selectedNote.tags ?? [];
-                selectedNote.tags = [...currentTags, tag];
-                selectedNote.updatedAt = new Date();
-              }}
-              onRemoveTag={(index) => {
-                const currentTags = selectedNote.tags ?? [];
-                selectedNote.tags = currentTags.filter((_, i) => i !== index);
-                selectedNote.updatedAt = new Date();
-              }}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <p className="text-lg">Select a note or create a new one</p>
-                <p className="text-sm mt-2">
-                  Use the sidebar to browse and organize your notes
-                </p>
-              </div>
+        {selectedNote ? (
+          <NoteEditor
+            note={selectedNote}
+            onUpdateTitle={(title) => {
+              selectedNote.title = title;
+              selectedNote.updatedAt = new Date();
+            }}
+            onUpdateContent={handleUpdateContent}
+            onTogglePin={() => {
+              selectedNote.isPinned = !selectedNote.isPinned;
+              selectedNote.updatedAt = new Date();
+            }}
+            onAddTag={(tag) => {
+              const currentTags = selectedNote.tags ?? [];
+              selectedNote.tags = [...currentTags, tag];
+              selectedNote.updatedAt = new Date();
+            }}
+            onRemoveTag={(index) => {
+              const currentTags = selectedNote.tags ?? [];
+              selectedNote.tags = currentTags.filter((_, i) => i !== index);
+              selectedNote.updatedAt = new Date();
+            }}
+          />
+        ) : (
+          <div className="h-full flex items-center justify-center text-muted-foreground p-4">
+            <div className="text-center">
+              <p className="text-lg">Select a note or create a new one</p>
+              <p className="text-sm mt-2">
+                Use the sidebar to browse and organize your notes
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </Sidebar>
     </>
   );

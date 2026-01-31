@@ -34,6 +34,7 @@ interface NoteTreeProps {
   onDelete: (args: { ids: string[] }) => void;
   onRenameClick?: (id: string, currentName: string) => void;
   onDeleteClick?: (ids: string[]) => void;
+  onNoteClick?: () => void; // Called when user explicitly clicks on a note (not folder)
 }
 
 export interface NoteTreeRef {
@@ -44,6 +45,7 @@ export interface NoteTreeRef {
 let renameClickCallback: ((id: string, currentName: string) => void) | null = null;
 let deleteClickCallback: ((ids: string[]) => void) | null = null;
 let onSelectCallback: ((node: TreeNode | null) => void) | null = null;
+let onNoteClickCallback: (() => void) | null = null;
 
 function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNode>) {
   return (
@@ -61,6 +63,10 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
         // This bypasses react-arborist's internal event handling which can be delayed on mobile
         if (onSelectCallback) {
           onSelectCallback(node.data);
+        }
+        // Notify that user explicitly clicked on a note (for mobile sidebar close)
+        if (!node.isInternal && onNoteClickCallback) {
+          onNoteClickCallback();
         }
       }}
       onDoubleClick={(e) => {
@@ -203,6 +209,7 @@ export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree
     onDelete,
     onRenameClick,
     onDeleteClick,
+    onNoteClick,
   },
   ref
 ) {
@@ -215,12 +222,14 @@ export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree
     renameClickCallback = onRenameClick || null;
     deleteClickCallback = onDeleteClick || null;
     onSelectCallback = onSelect;
+    onNoteClickCallback = onNoteClick || null;
     return () => {
       renameClickCallback = null;
       deleteClickCallback = null;
       onSelectCallback = null;
+      onNoteClickCallback = null;
     };
-  }, [onRenameClick, onDeleteClick, onSelect]);
+  }, [onRenameClick, onDeleteClick, onSelect, onNoteClick]);
 
   // Expose editNode method to parent (for future use)
   useImperativeHandle(ref, () => ({
