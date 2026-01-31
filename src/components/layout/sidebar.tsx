@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, forwardRef, useRef, useEffect } from "react";
+import { useState, forwardRef, useRef, useEffect, createContext, useContext } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,6 +30,22 @@ import {
 } from "lucide-react";
 import { NoteTree, TreeNode, NoteTreeRef } from "@/components/tree/note-tree";
 import { TagFilter } from "@/components/tree/tag-filter";
+
+// Context for mobile sidebar state
+interface MobileSidebarContextType {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+}
+
+const MobileSidebarContext = createContext<MobileSidebarContextType | null>(null);
+
+export function useMobileSidebar() {
+  const context = useContext(MobileSidebarContext);
+  if (!context) {
+    throw new Error("useMobileSidebar must be used within a MobileSidebarProvider");
+  }
+  return context;
+}
 
 interface SidebarProps {
   treeData: TreeNode[];
@@ -334,7 +350,23 @@ function SidebarContent({
   );
 }
 
-export function Sidebar(props: SidebarProps) {
+// Mobile header component with menu trigger
+export function MobileHeader({ title }: { title?: string }) {
+  const { setOpen } = useMobileSidebar();
+
+  return (
+    <div className="md:hidden flex items-center gap-3 p-4 border-b safe-top">
+      <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
+        <Menu className="h-5 w-5" />
+      </Button>
+      {title && (
+        <span className="font-medium truncate">{title}</span>
+      )}
+    </div>
+  );
+}
+
+export function Sidebar(props: SidebarProps & { children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   // Wrap onSelect to close the sheet on mobile after selection
@@ -347,15 +379,10 @@ export function Sidebar(props: SidebarProps) {
   };
 
   return (
-    <>
+    <MobileSidebarContext.Provider value={{ open, setOpen }}>
       {/* Mobile: Sheet */}
       <div className="md:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="fixed left-4 z-40 fixed-safe-top">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
           <SheetContent side="left" className="p-0 w-80">
             <SidebarContent {...props} onSelect={handleSelect} />
           </SheetContent>
@@ -363,9 +390,12 @@ export function Sidebar(props: SidebarProps) {
       </div>
 
       {/* Desktop: Fixed sidebar */}
-      <div className="hidden md:block w-80 border-r h-screen">
+      <div className="hidden md:block w-80 border-r h-screen flex-shrink-0">
         <SidebarContent {...props} />
       </div>
-    </>
+
+      {/* Main content wrapper - children get access to mobile sidebar context */}
+      {props.children}
+    </MobileSidebarContext.Provider>
   );
 }
