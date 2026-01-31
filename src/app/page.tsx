@@ -498,7 +498,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <>
       <DragPreview />
       <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
 
@@ -508,7 +508,6 @@ export default function Home() {
         onSelect={(node) => {
           if (node) {
             setSelectedNoteId(node.id);
-            // Don't show editor for folders, but still track selection
           } else {
             setSelectedNoteId(null);
           }
@@ -527,48 +526,46 @@ export default function Home() {
         tagCounts={tagCounts}
         treeRef={treeRef}
       >
-        <main className="flex-1 flex flex-col min-w-0">
-          {/* Mobile header with menu button */}
-          <MobileHeader title={selectedNote?.title} />
+        {/* Mobile header with menu button */}
+        <MobileHeader title={selectedNote?.title} />
 
-          {/* Content area */}
-          <div className="flex-1 p-4 md:p-6 md:pt-6 overflow-auto">
-            {selectedNote ? (
-              <NoteEditor
-                note={selectedNote}
-                onUpdateTitle={(title) => {
-                  selectedNote.title = title;
-                  selectedNote.updatedAt = new Date();
-                }}
-                onUpdateContent={handleUpdateContent}
-                onTogglePin={() => {
-                  selectedNote.isPinned = !selectedNote.isPinned;
-                  selectedNote.updatedAt = new Date();
-                }}
-                onAddTag={(tag) => {
-                  const currentTags = selectedNote.tags ?? [];
-                  selectedNote.tags = [...currentTags, tag];
-                  selectedNote.updatedAt = new Date();
-                }}
-                onRemoveTag={(index) => {
-                  const currentTags = selectedNote.tags ?? [];
-                  selectedNote.tags = currentTags.filter((_, i) => i !== index);
-                  selectedNote.updatedAt = new Date();
-                }}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <p className="text-lg">Select a note or create a new one</p>
-                  <p className="text-sm mt-2">
-                    Use the sidebar to browse and organize your notes
-                  </p>
-                </div>
+        {/* Content area */}
+        <div className="flex-1 p-4 md:p-6 overflow-auto">
+          {selectedNote ? (
+            <NoteEditor
+              note={selectedNote}
+              onUpdateTitle={(title) => {
+                selectedNote.title = title;
+                selectedNote.updatedAt = new Date();
+              }}
+              onUpdateContent={handleUpdateContent}
+              onTogglePin={() => {
+                selectedNote.isPinned = !selectedNote.isPinned;
+                selectedNote.updatedAt = new Date();
+              }}
+              onAddTag={(tag) => {
+                const currentTags = selectedNote.tags ?? [];
+                selectedNote.tags = [...currentTags, tag];
+                selectedNote.updatedAt = new Date();
+              }}
+              onRemoveTag={(index) => {
+                const currentTags = selectedNote.tags ?? [];
+                selectedNote.tags = currentTags.filter((_, i) => i !== index);
+                selectedNote.updatedAt = new Date();
+              }}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <p className="text-lg">Select a note or create a new one</p>
+                <p className="text-sm mt-2">
+                  Use the sidebar to browse and organize your notes
+                </p>
               </div>
-            )}
-          </div>
-        </main>
+            </div>
+          )}
+        </div>
       </Sidebar>
-    </div>
+    </>
   );
 }

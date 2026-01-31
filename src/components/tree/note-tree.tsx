@@ -26,6 +26,7 @@ export interface TreeNode {
 
 interface NoteTreeProps {
   data: TreeNode[];
+  selectedId?: string | null;
   onSelect: (node: TreeNode | null) => void;
   onCreate: (args: { parentId: string | null; index: number; type: "leaf" | "internal" }) => TreeNode | null;
   onMove: (args: { dragIds: string[]; parentId: string | null; index: number }) => void;
@@ -194,6 +195,7 @@ function TreeNodeRenderer({ node, style, dragHandle }: NodeRendererProps<TreeNod
 export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree(
   {
     data,
+    selectedId,
     onSelect,
     onCreate,
     onMove,
@@ -274,13 +276,18 @@ export const NoteTree = forwardRef<NoteTreeRef, NoteTreeProps>(function NoteTree
         rowHeight={32}
         paddingBottom={32}
         dndManager={dndManager}
+        selection={selectedId ?? undefined}
         onCreate={onCreate}
         onMove={handleMove}
         onRename={onRename}
         onDelete={handleDelete}
         onSelect={(nodes) => {
-          const selected = nodes[0]?.data ?? null;
-          onSelect(selected);
+          // Only call onSelect if a node is actually selected
+          // Don't deselect when clicking on empty space
+          if (nodes.length > 0) {
+            const selected = nodes[0]?.data ?? null;
+            onSelect(selected);
+          }
         }}
         // Disable keyboard shortcuts to prevent accidental changes
         disableEdit

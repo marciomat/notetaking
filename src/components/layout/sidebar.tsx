@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, forwardRef, useRef, useEffect, createContext, useContext } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -20,7 +18,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Menu,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
+  SidebarInput,
+  SidebarGroup,
+  SidebarGroupContent,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import {
   Plus,
   FolderPlus,
   FileText,
@@ -31,23 +40,7 @@ import {
 import { NoteTree, TreeNode, NoteTreeRef } from "@/components/tree/note-tree";
 import { TagFilter } from "@/components/tree/tag-filter";
 
-// Context for mobile sidebar state
-interface MobileSidebarContextType {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}
-
-const MobileSidebarContext = createContext<MobileSidebarContextType | null>(null);
-
-export function useMobileSidebar() {
-  const context = useContext(MobileSidebarContext);
-  if (!context) {
-    throw new Error("useMobileSidebar must be used within a MobileSidebarProvider");
-  }
-  return context;
-}
-
-interface SidebarProps {
+interface AppSidebarProps {
   treeData: TreeNode[];
   selectedId: string | null;
   onSelect: (node: TreeNode | null) => void;
@@ -64,9 +57,11 @@ interface SidebarProps {
   onTagsChange: (tags: string[]) => void;
   tagCounts?: Map<string, number>;
   treeRef?: React.RefObject<NoteTreeRef>;
+  children?: React.ReactNode;
 }
 
-function SidebarContent({
+// Inner component that can use useSidebar hook
+function AppSidebarContent({
   treeData,
   selectedId,
   onSelect,
@@ -83,12 +78,14 @@ function SidebarContent({
   onTagsChange,
   tagCounts,
   treeRef,
-}: SidebarProps) {
+}: Omit<AppSidebarProps, "children">) {
+  const { setOpenMobile } = useSidebar();
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createItemType, setCreateItemType] = useState<"note" | "calculator" | "folder">("note");
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [itemName, setItemName] = useState("");
-  
+
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renameItemId, setRenameItemId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -101,10 +98,8 @@ function SidebarContent({
   // Select text when rename dialog opens
   useEffect(() => {
     if (renameDialogOpen && renameInputRef.current) {
-      // iOS Safari requires requestAnimationFrame for reliable selection
       requestAnimationFrame(() => {
         renameInputRef.current?.focus();
-        // iOS Safari needs a small delay before select() works
         setTimeout(() => {
           renameInputRef.current?.select();
         }, 100);
@@ -127,18 +122,16 @@ function SidebarContent({
 
   const handleCreateClick = (type: "note" | "calculator" | "folder", parentId: string | null = null) => {
     setCreateItemType(type);
-    // If parentId is not provided, check if a folder is selected
     if (parentId === null && selectedId) {
       const selected = findNodeById(treeData, selectedId);
-      // If selected item is a folder, use it as parent
       if (selected?.isFolder) {
         parentId = selectedId;
       }
     }
     setCreateParentId(parentId);
     setItemName(
-      type === "folder" ? "New Folder" : 
-      type === "calculator" ? "Untitled Calculator" : 
+      type === "folder" ? "New Folder" :
+      type === "calculator" ? "Untitled Calculator" :
       "Untitled Note"
     );
     setCreateDialogOpen(true);
@@ -146,13 +139,13 @@ function SidebarContent({
 
   const handleCreateSubmit = () => {
     if (!itemName.trim()) return;
-    
+
     if (createItemType === "folder") {
       onCreateFolder(createParentId, itemName);
     } else {
       onCreateNote(createItemType === "calculator" ? "calculator" : "plain", createParentId, itemName);
     }
-    
+
     setCreateDialogOpen(false);
     setItemName("");
   };
@@ -165,9 +158,9 @@ function SidebarContent({
 
   const handleRenameSubmit = () => {
     if (!renameValue.trim() || !renameItemId) return;
-    
+
     onRename({ id: renameItemId, name: renameValue });
-    
+
     setRenameDialogOpen(false);
     setRenameItemId(null);
     setRenameValue("");
@@ -175,7 +168,6 @@ function SidebarContent({
 
   const handleDeleteClick = (ids: string[]) => {
     setDeleteItemIds(ids);
-    // Get the name of the first item for the confirmation message
     const firstNode = findNodeById(treeData, ids[0]);
     setDeleteItemName(firstNode?.name || "this item");
     setDeleteDialogOpen(true);
@@ -188,9 +180,17 @@ function SidebarContent({
     setDeleteItemName("");
   };
 
+  // Wrap onSelect to close mobile sidebar when note is selected
+  const handleSelect = (node: TreeNode | null) => {
+    onSelect(node);
+    if (node && !node.isFolder) {
+      setOpenMobile(false);
+    }
+  };
+
   return (
     <>
-      {/* Create Dialog */}
+      {/* Dialogs */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -220,7 +220,6 @@ function SidebarContent({
         </DialogContent>
       </Dialog>
 
-      {/* Rename Dialog */}
       <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -248,13 +247,12 @@ function SidebarContent({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Delete</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{deleteItemName}"?
+              Are you sure you want to delete &quot;{deleteItemName}&quot;?
               {deleteItemIds.length > 1 && ` and ${deleteItemIds.length - 1} other item(s)`}
               {" "}This action cannot be undone.
             </DialogDescription>
@@ -270,95 +268,93 @@ function SidebarContent({
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col h-full">
-        {/* Header */}
-      <div className="p-4 border-b space-y-3 safe-top">
-        <div className="flex items-center justify-between">
-          <h1 className="font-semibold text-lg">Notes</h1>
-          <Button variant="ghost" size="icon" onClick={onOpenSettings}>
-            <Settings className="h-4 w-4" />
-          </Button>
-        </div>
+      {/* Sidebar using ShadCN components */}
+      <Sidebar>
+        <SidebarHeader className="p-4 border-b space-y-3">
+          <div className="flex items-center justify-between">
+            <h1 className="font-semibold text-lg">Notes</h1>
+            <Button variant="ghost" size="icon" onClick={onOpenSettings}>
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search notes..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-8"
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <SidebarInput
+              placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+
+          {/* Tag Filter */}
+          <TagFilter
+            allTags={allTags}
+            selectedTags={selectedTags}
+            onTagsChange={onTagsChange}
+            tagCounts={tagCounts}
           />
-        </div>
 
-        {/* Tag Filter */}
-        <TagFilter
-          allTags={allTags}
-          selectedTags={selectedTags}
-          onTagsChange={onTagsChange}
-          tagCounts={tagCounts}
-        />
+          {/* Actions */}
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1">
+                  <Plus className="h-4 w-4 mr-1" />
+                  New
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleCreateClick("note")}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Note
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateClick("calculator")}>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Calculator
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreateClick("folder")}>
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  Folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </SidebarHeader>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex-1">
-                <Plus className="h-4 w-4 mr-1" />
-                New
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleCreateClick("note")}>
-                <FileText className="h-4 w-4 mr-2" />
-                Note
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateClick("calculator")}>
-                <Calculator className="h-4 w-4 mr-2" />
-                Calculator
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleCreateClick("folder")}>
-                <FolderPlus className="h-4 w-4 mr-2" />
-                Folder
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Tree */}
-      <ScrollArea className="flex-1">
-        <div className="p-2 h-[calc(100vh-200px)]">
-          <NoteTree
-            ref={treeRef}
-            data={treeData}
-            onSelect={onSelect}
-            onCreate={({ parentId, type }) => {
-              handleCreateClick(type === "internal" ? "folder" : "note", parentId);
-              return null;
-            }}
-            onMove={onMove}
-            onRename={onRename}
-            onRenameClick={handleRenameClick}
-            onDelete={onDelete}
-            onDeleteClick={handleDeleteClick}
-          />
-        </div>
-      </ScrollArea>
-    </div>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent className="h-[calc(100vh-280px)]">
+              <NoteTree
+                ref={treeRef}
+                data={treeData}
+                selectedId={selectedId}
+                onSelect={handleSelect}
+                onCreate={({ parentId, type }) => {
+                  handleCreateClick(type === "internal" ? "folder" : "note", parentId);
+                  return null;
+                }}
+                onMove={onMove}
+                onRename={onRename}
+                onRenameClick={handleRenameClick}
+                onDelete={onDelete}
+                onDeleteClick={handleDeleteClick}
+              />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
     </>
   );
 }
 
-// Mobile header component with menu trigger
+// Mobile header with sidebar trigger
 export function MobileHeader({ title }: { title?: string }) {
-  const { setOpen } = useMobileSidebar();
-
   return (
-    <div className="md:hidden flex items-center gap-3 p-4 border-b safe-top">
-      <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
-        <Menu className="h-5 w-5" />
-      </Button>
+    <div className="md:hidden flex items-center gap-3 p-4 border-b">
+      <SidebarTrigger />
       {title && (
         <span className="font-medium truncate">{title}</span>
       )}
@@ -366,36 +362,17 @@ export function MobileHeader({ title }: { title?: string }) {
   );
 }
 
-export function Sidebar(props: SidebarProps & { children?: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-
-  // Wrap onSelect to close the sheet on mobile after selection
-  const handleSelect = (node: TreeNode | null) => {
-    props.onSelect(node);
-    // Close sheet on mobile when a note (not folder) is selected
-    if (node && !node.isFolder) {
-      setOpen(false);
-    }
-  };
-
+// Main exported component that wraps everything in SidebarProvider
+export function AppSidebar({ children, ...props }: AppSidebarProps) {
   return (
-    <MobileSidebarContext.Provider value={{ open, setOpen }}>
-      {/* Mobile: Sheet */}
-      <div className="md:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="left" className="p-0 w-80">
-            <SidebarContent {...props} onSelect={handleSelect} />
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* Desktop: Fixed sidebar */}
-      <div className="hidden md:block w-80 border-r h-screen flex-shrink-0">
-        <SidebarContent {...props} />
-      </div>
-
-      {/* Main content wrapper - children get access to mobile sidebar context */}
-      {props.children}
-    </MobileSidebarContext.Provider>
+    <SidebarProvider>
+      <AppSidebarContent {...props} />
+      <SidebarInset>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
+
+// Export for backward compatibility
+export { AppSidebar as Sidebar };
