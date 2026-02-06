@@ -108,6 +108,10 @@ textarea:focus {
   .fixed-safe-top {
     top: calc(1rem + env(safe-area-inset-top));
   }
+
+  .sidebar-safe-top {
+    padding-top: calc(2.5rem + env(safe-area-inset-top)) !important;
+  }
 }
 
 /* TipTap Editor - Obsidian-like styling */

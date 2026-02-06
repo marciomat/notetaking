@@ -239,7 +239,7 @@ function SidebarContent({
       {/* Sidebar content */}
       <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
         {/* Header */}
-        <div className="p-4 border-b space-y-3">
+        <div className="p-4 border-b space-y-3 sidebar-safe-top">
           <div className="flex items-center justify-between">
             <h1 className="font-semibold text-lg">Notes</h1>
             <div className="flex items-center gap-1">
