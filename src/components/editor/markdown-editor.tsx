@@ -8,10 +8,10 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Typography from "@tiptap/extension-typography";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
-import { all, createLowlight } from "lowlight";
+import { common, createLowlight } from "lowlight";
 import { useEffect } from "react";
 
-const lowlight = createLowlight(all);
+const lowlight = createLowlight(common);
 
 /**
  * Markdown Editor with Obsidian-like real-time rendering
