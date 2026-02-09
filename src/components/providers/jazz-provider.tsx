@@ -3,7 +3,7 @@
 import { JazzProvider } from "jazz-react";
 import { NumpadAccount } from "@/lib/schema";
 
-const JAZZ_PEER = "wss://numpad_relay.mmdev.win" as `wss://${string}`;
+const JAZZ_PEER = "wss://numpad-relay.mmdev.uk" as `wss://${string}`;
 
 export function NumpadJazzProvider({ children }: { children: React.ReactNode }) {
   return (
