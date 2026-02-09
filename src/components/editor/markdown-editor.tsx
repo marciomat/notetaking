@@ -66,7 +66,9 @@ export function MarkdownEditor({
           },
         },
       }),
-      CodeBlockLowlight.configure({
+      CodeBlockLowlight.extend({
+        name: "codeBlock", // Ensure it uses the name "codeBlock"
+      }).configure({
         lowlight,
         HTMLAttributes: {
           class: "bg-muted rounded-lg p-4 font-mono text-sm overflow-x-auto",

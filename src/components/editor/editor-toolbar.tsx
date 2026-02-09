@@ -43,9 +43,13 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     <Button
       variant="ghost"
       size="sm"
-      onClick={onClick}
+      onClick={(e) => {
+        e.preventDefault();
+        onClick();
+      }}
       title={title}
       className={cn("h-8 w-8 p-0", isActive && "bg-accent")}
+      type="button"
     >
       {children}
     </Button>
@@ -146,7 +150,13 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        onClick={() => {
+          if (editor.can().toggleCodeBlock()) {
+            editor.chain().focus().toggleCodeBlock().run();
+          } else if (editor.can().setCodeBlock()) {
+            editor.chain().focus().setCodeBlock().run();
+          }
+        }}
         isActive={editor.isActive("codeBlock")}
         title="Code Block"
       >
