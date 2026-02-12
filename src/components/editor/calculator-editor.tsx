@@ -30,6 +30,16 @@ export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
 
   const { results, total } = calculateTotal(localLines);
 
+  // Auto-resize textareas
+  useEffect(() => {
+    textareaRefs.current.forEach((textarea) => {
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      }
+    });
+  }, [localLines]);
+
   const handleLineChange = useCallback(
     (index: number, value: string) => {
       const newLines = [...localLines];
@@ -97,10 +107,12 @@ export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
               onKeyDown={(e) => handleKeyDown(index, e)}
               placeholder={index === 0 ? "food: 25" : ""}
               rows={1}
+              wrap="soft"
               className={cn(
                 "flex-1 bg-transparent resize-none outline-none",
                 "text-sm font-mono leading-relaxed",
-                "placeholder:text-muted-foreground/50"
+                "placeholder:text-muted-foreground/50",
+                "overflow-hidden whitespace-pre-wrap break-words"
               )}
             />
 
