@@ -105,7 +105,7 @@ export function CalculatorEditor({ lines, onUpdate }: CalculatorEditorProps) {
               value={localLines[index]}
               onChange={(e) => handleLineChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
-              placeholder={index === 0 ? "food: 25" : ""}
+              placeholder={index === 0 ? "food: 25 # dinner" : ""}
               rows={1}
               wrap="soft"
               className={cn(
